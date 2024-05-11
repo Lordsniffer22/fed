@@ -58,14 +58,35 @@ async def download_in_video_only(video_url):
         return mp4_file
     else:
         return None
-async def send_mp4_video(message: types.Message, video_url: str):
+async def send_mp4_video_or_document(message: types.Message, video_url: str):
     mp4_file = await download_in_video_only(video_url)
     chat_id = message.chat.id
-    url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"
+
+    # Check the size of the video file
+    file_size = os.path.getsize(mp4_file)
+    if file_size > 50 * 1024 * 1024:  # 50MB in bytes
+        await send_mp4_document(message, mp4_file)
+    else:
+        url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"
+
+        # Open the file in binary mode and send it as a document using the requests library
+        with open(mp4_file, "rb") as file:
+            files = {"video": file}
+            params = {"chat_id": chat_id}
+            response = requests.post(url, files=files, data=params)
+
+        if response.status_code == 200:
+            print("File sent successfully!")
+        else:
+            print(f"Failed to send file. Error: {response.text}")
+async def send_mp4_document(message: types.Message, video_url: str):
+    mp4_doc = await download_in_video_only(video_url)
+    chat_id = message.chat.id
+    url = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
 
     # Open the file in binary mode and send it as a document using the requests library
-    with open(mp4_file, "rb") as file:
-        files = {"video": file}
+    with open(mp4_doc, "rb") as file:
+        files = {"document": file}
         params = {"chat_id": chat_id}
         response = requests.post(url, files=files, data=params)
 
@@ -115,7 +136,7 @@ async def process_callback(callback_query: types.CallbackQuery):
             await callback_query.answer("Video URL not found. Please send a YouTube link first.")
     elif option == 'get_video':
         if video_url:
-            await send_mp4_video(callback_query.message, video_url)
+            await send_mp4_video_or_document(callback_query.message, video_url)
         else:
             await callback_query.answer("Video URL not found. Please send a YouTube link first.")
 
