@@ -46,7 +46,10 @@ async def send_mp3_file(message: types.Message, video_url: str):
 
     if response.status_code == 200:
         print("File sent successfully!")
-        await bot.delete_message(chat_id, message.message_id)
+        time.sleep(2)
+        await dp.bot.delete_message(message.chat.id, message.message_id)
+        time.sleep(10)
+        await message.delete()
     else:
         print(f"Failed to send file. Error: {response.text}")
 async def download_in_video_only(video_url):
@@ -81,6 +84,10 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
 
         if response.status_code == 200:
             print("File sent successfully!")
+            time.sleep(2)
+            await dp.bot.delete_message(message.chat.id, message.message_id)
+            time.sleep(10)
+            await message.delete()
         else:
             print(f"Failed to send file. Error: {response.text}")
 
