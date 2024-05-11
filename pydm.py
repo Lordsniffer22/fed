@@ -65,18 +65,7 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
     # Check the size of the video file
     file_size = os.path.getsize(mp4_file)
     if file_size > 50 * 1024 * 1024:  # 50MB in bytes
-        url = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
-
-        # Open the file in binary mode and send it as a document using the requests library
-        with open(mp4_file, "rb") as file:
-            files = {"document": file}
-            params = {"chat_id": chat_id}
-            response = requests.post(url, files=files, data=params)
-
-        if response.status_code == 200:
-            print("File sent successfully!")
-        else:
-            print(f"Failed to send file. Error: {response.text}")
+            await message.answer('Am sorry, Telegram servers didnt allow me \nshare that video because its greater that 50mb. \nBut the admins are working on a better fix. \n\nTry other video links too')
     else:
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"
 
