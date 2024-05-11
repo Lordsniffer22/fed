@@ -34,12 +34,14 @@ async def download_and_convert_to_mp3(video_url):
 async def send_mp3_file(message: types.Message, video_url: str):
     mp3_file = await download_and_convert_to_mp3(video_url)
     chat_id = message.chat.id
-    url = f"https://api.telegram.org/bot{TOKEN}/sendDocument"
+    url = f"https://api.telegram.org/bot{TOKEN}/sendAudio"
+    tyto = mp3_file
+    caption = f"Title: {tyto}"  # Modify this caption as needed
 
     # Open the file in binary mode and send it as a document using the requests library
     with open(mp3_file, "rb") as file:
-        files = {"document": file}
-        params = {"chat_id": chat_id}
+        files = {"audio": file}
+        params = {"chat_id": chat_id, "caption": caption}
         response = requests.post(url, files=files, data=params)
 
     if response.status_code == 200:
@@ -68,12 +70,13 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             await message.answer('Am sorry, Telegram servers didnt allow me \nshare that video because its greater that 50mb. \nBut the admins are working on a better fix. \n\nTry other video links too')
     else:
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"
+        caption = "Your caption here"  # Modify this caption as needed
 
         # Open the file in binary mode and send it as a document using the requests library
         with open(mp4_file, "rb") as file:
             files = {"video": file}
             params = {"chat_id": chat_id}
-            response = requests.post(url, files=files, data=params)
+            response = requests.post(url, files=files, data=params, caption=caption)
 
         if response.status_code == 200:
             print("File sent successfully!")
