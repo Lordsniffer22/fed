@@ -3,6 +3,7 @@ import sys
 import asyncio
 from aiogram import Bot, Dispatcher, html, F, Router, types
 import os
+import re
 from dotenv import load_dotenv
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
@@ -26,7 +27,7 @@ async def download_and_convert_to_mp3(video_url):
     if stream:
         file_path = stream.download()
         mp3_file = f"{video_title}.mp3"
-        time.sleep(5)
+        time.sleep(15)
         os.rename(file_path, mp3_file)
         return mp3_file
     else:
@@ -36,7 +37,8 @@ async def send_mp3_file(message: types.Message, video_url: str):
     chat_id = message.chat.id
     url = f"https://api.telegram.org/bot{TOKEN}/sendAudio"
     tyto = mp3_file
-    caption = f"Title: {tyto}"  # Modify this caption as needed
+    caption = f"Title: {tyto}\n"  # Modify this caption as needed
+    progress_message = await message.answer('Processing the mp3 file\n[■■■■■■■■□□] 80%')
 
     # Open the file in binary mode and send it as a document using the requests library
     with open(mp3_file, "rb") as file:
@@ -45,12 +47,14 @@ async def send_mp3_file(message: types.Message, video_url: str):
         response = requests.post(url, files=files, data=params)
 
     if response.status_code == 200:
+        await progress_message.edit_text('[■■■■■■■■■■] 100% \nComplete✅')
         print("File sent successfully!")
-        time.sleep(2)
-        await dp.bot.delete_message(message.chat.id, message.message_id)
-        time.sleep(10)
+        time.sleep(15)
         await message.delete()
+        await progress_message.delete()
+        await os.system("sudo rm -rf *.mp3")
     else:
+        await os.system("sudo rm -rf *.mp3")
         print(f"Failed to send file. Error: {response.text}")
 async def download_in_video_only(video_url):
     yt = YouTube(video_url)
@@ -74,6 +78,7 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             await message.answer('Am sorry, Telegram servers didnt allow me \nshare that video because its greater that 50mb. \nBut the admins are working on a better fix. \n\nTry other video links too')
     else:
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"# Modify this caption as needed
+        progress_message = await message.answer('Fetching the Video\n[■■■■■■■□□□] 76%')
 
         # Open the file in binary mode and send it as a document using the requests library
         with open(mp4_file, "rb") as file:
@@ -82,38 +87,56 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             response = requests.post(url, files=files, data=params)
 
         if response.status_code == 200:
+            await progress_message.edit_text('[■■■■■■■■■■] 100% \nComplete✅')
             print("File sent successfully!")
-            time.sleep(2)
-            await dp.bot.delete_message(message.chat.id, message.message_id)
-            time.sleep(10)
+            time.sleep(15)
             await message.delete()
+            await progress_message.delete()
+            await os.system("sudo rm -rf *.mp4")
         else:
+            await os.system("sudo rm -rf *.mp3")
             print(f"Failed to send file. Error: {response.text}")
 
 
 async def check_youtube(message: types.Message):
     return message.text.startswith('https://www.youtube.com/') or message.text.startswith('https://youtu.be/')
 
-
-
+async def check_if_youtube(message: types.Message):
+    # Regular expression pattern to match YouTube URLs
+    youtube_pattern = r'(https?://)?(www\.)?(youtube\.com/watch\?v=|youtu\.be/)[\w-]+(&\S+)?'
+    return re.search(youtube_pattern, message.text) is not None
 @dp.message()
 async def handle_message(message: types.Message) -> None:
     is_yt_link = await check_youtube(message)
+    re_yt_link = await check_if_youtube(message)
 
     if is_yt_link:
         user_video_urls[message.chat.id] = message.text
+        time.sleep(2)
+        await message.delete()
         builder = InlineKeyboardBuilder()
         markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='MP3', callback_data='get_mp3'),
         InlineKeyboardButton(text='Video', callback_data='get_video')]
     ])  # Some markup
         builder.attach(InlineKeyboardBuilder.from_markup(markup))
-        await message.answer("Choose a format:", reply_markup=builder.as_markup())
+        await message.answer("Choose a format:\n══════════════════\nYoutube Video Downloader\nBot: @botname ", reply_markup=builder.as_markup())
+
         #await send_mp3_file(message, message.text)
     if message.text.strip() == '/start':
-        await message.answer('Hello, i am a youtube video downloader bot. \nTo have a youtube video downloaded, send me its link.')
-    elif not is_yt_link:
-        await message.answer("Only Youtube Links are accepted. Try again later!")
+        await message.answer('Hello, just forwad me a video link here or any message \nthat has a youtube video . \n\nJoin our Community: \n--> @udpcustom')
+    elif re_yt_link:
+        user_video_urls[message.chat.id] = message.text
+        time.sleep(2)
+        await message.delete()
+        builder = InlineKeyboardBuilder()
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='Get MP3', callback_data='get_mp3'),
+             InlineKeyboardButton(text='Get Video', callback_data='get_video')]
+        ])  # Some markup
+        builder.attach(InlineKeyboardBuilder.from_markup(markup))
+        await message.answer("Choose a format:\n══════════════════\nYoutube Video Downloader\nBot: @botname", reply_markup=builder.as_markup())
+        # await send_mp3_file(message, message.text)
         pass
 # Handler for inline keyboard button clicks
 @dp.callback_query(lambda c: c.data)
