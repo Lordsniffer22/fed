@@ -67,6 +67,7 @@ async def download_in_video_only(video_url):
 async def send_mp4_video_or_document(message: types.Message, video_url: str):
     mp4_file = await download_in_video_only(video_url)
     chat_id = message.chat.id
+    vtyto = mp4_file
 
     # Check the size of the video file
     file_size = os.path.getsize(mp4_file)
@@ -74,12 +75,12 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             await message.answer('Am sorry, Telegram servers didnt allow me \nshare that video because its greater that 50mb. \nBut the admins are working on a better fix. \n\nTry other video links too')
     else:
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"
-        caption = "Your caption here"  # Modify this caption as needed
+        caption = f"Title: {vtyto}"  # Modify this caption as needed
 
         # Open the file in binary mode and send it as a document using the requests library
         with open(mp4_file, "rb") as file:
             files = {"video": file}
-            params = {"chat_id": chat_id}
+            params = {"chat_id": chat_id, "caption": caption}
             response = requests.post(url, files=files, data=params, caption=caption)
 
         if response.status_code == 200:
