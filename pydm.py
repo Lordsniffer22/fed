@@ -67,7 +67,6 @@ async def download_in_video_only(video_url):
 async def send_mp4_video_or_document(message: types.Message, video_url: str):
     mp4_file = await download_in_video_only(video_url)
     chat_id = message.chat.id
-    vtyto = mp4_file
 
     # Check the size of the video file
     file_size = os.path.getsize(mp4_file)
@@ -80,8 +79,8 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
         # Open the file in binary mode and send it as a document using the requests library
         with open(mp4_file, "rb") as file:
             files = {"video": file}
-            params = {"chat_id": chat_id, "caption": caption}
-            response = requests.post(url, files=files, data=params, caption=caption)
+            params = {"chat_id": chat_id}
+            response = requests.post(url, files=files, data=params)
 
         if response.status_code == 200:
             print("File sent successfully!")
