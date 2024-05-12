@@ -52,9 +52,9 @@ async def send_mp3_file(message: types.Message, video_url: str):
         time.sleep(15)
         await message.delete()
         await progress_message.delete()
-        await os.system("sudo rm -rf *.mp3")
+        os.system("sudo rm -rf *.mp3")
     else:
-        await os.system("sudo rm -rf *.mp3")
+        os.system("sudo rm -rf *.mp3")
         print(f"Failed to send file. Error: {response.text}")
 async def download_in_video_only(video_url):
     yt = YouTube(video_url)
@@ -76,6 +76,7 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
     file_size = os.path.getsize(mp4_file)
     if file_size > 50 * 1024 * 1024:  # 50MB in bytes
             await message.answer('Am sorry, Telegram servers didnt allow me \nshare that video because its greater that 50mb. \nBut the admins are working on a better fix. \n\nTry other video links too')
+            os.system("sudo rm -rf *.mp4")
     else:
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"# Modify this caption as needed
         progress_message = await message.answer('Fetching the Video\n[■■■■■■■□□□] 76%')
@@ -92,9 +93,9 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             time.sleep(15)
             await message.delete()
             await progress_message.delete()
-            await os.system("sudo rm -rf *.mp4")
+            os.system("sudo rm -rf *.mp4")
         else:
-            await os.system("sudo rm -rf *.mp3")
+            os.system("sudo rm -rf *.mp3")
             print(f"Failed to send file. Error: {response.text}")
 
 
@@ -124,7 +125,7 @@ async def handle_message(message: types.Message) -> None:
 
         #await send_mp3_file(message, message.text)
     if message.text.strip() == '/start':
-        await message.answer('Hello, just forwad me a video link here or any message \nthat has a youtube video . \n\nJoin our Community: \n--> @udpcustom')
+        await message.answer('Hello, just forwad me a video link here or any message that has a youtube video . \n\nJoin our Community: \n--> @udpcustom')
     elif re_yt_link:
         user_video_urls[message.chat.id] = message.text
         time.sleep(2)
