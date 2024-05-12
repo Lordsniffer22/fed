@@ -80,7 +80,10 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
     else:
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"# Modify this caption as needed
         progress_message = await message.answer('Fetching the Video\n[■■■■■□□□□□] 50%')
-
+        time.sleep(2)
+        progress_message2 = await progress_message.edit_text('Fetching the Video\n[■■■■■■■□□□] 77%')
+        time.sleep(2)
+        await progress_message2.edit_text('[■■■■■■■■■■] 100% \nComplete✅')
         # Open the file in binary mode and send it as a document using the requests library
         with open(mp4_file, "rb") as file:
             files = {"video": file}
@@ -88,10 +91,6 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             response = requests.post(url, files=files, data=params)
 
         if response.status_code == 200:
-            time.sleep(2)
-            await progress_message.edit_text('[■■■■■■■□□□] 77% \nComplete✅')
-            time.sleep(2)
-            await progress_message.edit_text('[■■■■■■■■■■] 100% \nComplete✅')
             print("File sent successfully!")
             time.sleep(15)
             await message.delete()
