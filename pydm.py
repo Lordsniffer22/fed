@@ -79,7 +79,7 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             os.system("sudo rm -rf *.mp4")
     else:
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"# Modify this caption as needed
-        progress_message = await message.answer('Fetching the Video\n[■■■■■■■□□□] 76%')
+        progress_message = await message.answer('Fetching the Video\n[■■■■■□□□□□] 50%')
 
         # Open the file in binary mode and send it as a document using the requests library
         with open(mp4_file, "rb") as file:
@@ -88,6 +88,9 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             response = requests.post(url, files=files, data=params)
 
         if response.status_code == 200:
+            time.sleep(2)
+            await progress_message.edit_text('[■■■■■■■□□□] 77% \nComplete✅')
+            time.sleep(2)
             await progress_message.edit_text('[■■■■■■■■■■] 100% \nComplete✅')
             print("File sent successfully!")
             time.sleep(15)
@@ -136,7 +139,7 @@ async def handle_message(message: types.Message) -> None:
              InlineKeyboardButton(text='Get Video', callback_data='get_video')]
         ])  # Some markup
         builder.attach(InlineKeyboardBuilder.from_markup(markup))
-        await message.answer("Choose a format:\n══════════════════\nYoutube Video Downloader\nBot: @botname", reply_markup=builder.as_markup())
+        await message.answer("Choose a format:\n══════════════════\nYoutube Video Downloader\nBot: @tubyDoo_bot", reply_markup=builder.as_markup())
         # await send_mp3_file(message, message.text)
         pass
 # Handler for inline keyboard button clicks
