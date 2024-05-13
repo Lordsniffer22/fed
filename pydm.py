@@ -42,7 +42,7 @@ async def send_mp3_file(message: types.Message, video_url: str):
     time.sleep(2)
     progress_message2 = await progress_message.edit_text('Fetching the Video\n[■■■■■□□□□□] 50%')
     time.sleep(2)
-    progress_message3 = await progress_message2.edit_text('Fetching the Video\n[■■■■■■□□□] 70%')
+    progress_message3 = await progress_message2.edit_text('Fetching the Video\n[■■■■■■■□□□] 70%')
     time.sleep(2)
     await progress_message3.edit_text('[■■■■■■■■■■] 100% ✅')
     # Open the file in binary mode and send it as a document using the requests library
@@ -55,7 +55,7 @@ async def send_mp3_file(message: types.Message, video_url: str):
         print("File sent successfully!")
         time.sleep(15)
         await message.delete()
-        await progress_message.delete()
+        #await progress_message.delete()
         os.system("sudo rm -rf *.mp3")
     else:
         os.system("sudo rm -rf *.mp3")
@@ -87,7 +87,7 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
         time.sleep(2)
         progress_message2 = await progress_message.edit_text('Fetching the Video\n[■■■■■□□□□□] 50%')
         time.sleep(2)
-        progress_message3 = await progress_message2.edit_text('Fetching the Video\n[■■■■■■□□□] 70%')
+        progress_message3 = await progress_message2.edit_text('Fetching the Video\n[■■■■■■■□□□] 70%')
         time.sleep(2)
         await progress_message3.edit_text('[■■■■■■■■■■] 100% ✅')
         # Open the file in binary mode and send it as a document using the requests library
@@ -100,7 +100,7 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
             print("File sent successfully!")
             time.sleep(15)
             await message.delete()
-            await progress_message.delete()
+           # await progress_message.delete()
             os.system("sudo rm -rf *.mp4")
         else:
             os.system("sudo rm -rf *.mp3")
