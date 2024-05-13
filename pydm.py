@@ -38,11 +38,11 @@ async def send_mp3_file(message: types.Message, video_url: str):
     url = f"https://api.telegram.org/bot{TOKEN}/sendAudio"
     tyto = mp3_file
     caption = f"Title: {tyto}\n"  # Modify this caption as needed
-    progress_message = await message.answer('Fetching the Video\n[■■■□□□□□□□] 30%')
+    progress_message = await message.answer('Fetching the MP3 File\n[■■■□□□□□□□] 30%')
     time.sleep(2)
-    progress_message2 = await progress_message.edit_text('Fetching the Video\n[■■■■■□□□□□] 50%')
+    progress_message2 = await progress_message.edit_text('Processing the file\n[■■■■■□□□□□] 50%')
     time.sleep(2)
-    progress_message3 = await progress_message2.edit_text('Fetching the Video\n[■■■■■■■□□□] 70%')
+    progress_message3 = await progress_message2.edit_text('Uploading...\n[■■■■■■■□□□] 70%')
     time.sleep(2)
     await progress_message3.edit_text('[■■■■■■■■■■] 100% ✅')
     # Open the file in binary mode and send it as a document using the requests library
@@ -85,9 +85,9 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
         url = f"https://api.telegram.org/bot{TOKEN}/sendVideo"# Modify this caption as needed
         progress_message = await message.answer('Fetching the Video\n[■■■□□□□□□□] 30%')
         time.sleep(2)
-        progress_message2 = await progress_message.edit_text('Fetching the Video\n[■■■■■□□□□□] 50%')
+        progress_message2 = await progress_message.edit_text('Processing the Video\n[■■■■■□□□□□] 50%')
         time.sleep(2)
-        progress_message3 = await progress_message2.edit_text('Fetching the Video\n[■■■■■■■□□□] 70%')
+        progress_message3 = await progress_message2.edit_text('Uploading...\n[■■■■■■■□□□] 70%')
         time.sleep(2)
         await progress_message3.edit_text('[■■■■■■■■■■] 100% ✅')
         # Open the file in binary mode and send it as a document using the requests library
