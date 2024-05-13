@@ -37,7 +37,7 @@ async def send_mp3_file(message: types.Message, video_url: str):
     chat_id = message.chat.id
     url = f"https://api.telegram.org/bot{TOKEN}/sendAudio"
     tyto = mp3_file
-    caption = f"Title: {tyto}\n"  # Modify this caption as needed
+    caption = f"Audio: {tyto}\n\nBot: @TubyDoo_bot"  # Modify this caption as needed
     progress_message = await message.answer('Fetching the MP3 File\n[■■■□□□□□□□] 30%')
     time.sleep(2)
     progress_message2 = await progress_message.edit_text('Processing the file\n[■■■■■□□□□□] 50%')
@@ -75,6 +75,8 @@ async def download_in_video_only(video_url):
 async def send_mp4_video_or_document(message: types.Message, video_url: str):
     mp4_file = await download_in_video_only(video_url)
     chat_id = message.chat.id
+    tyto = mp4_file
+    caption = f"Video: {tyto}\n\nBot: @TubyDoo_bot"  # Modify this caption as needed
 
     # Check the size of the video file
     file_size = os.path.getsize(mp4_file)
@@ -93,7 +95,7 @@ async def send_mp4_video_or_document(message: types.Message, video_url: str):
         # Open the file in binary mode and send it as a document using the requests library
         with open(mp4_file, "rb") as file:
             files = {"video": file}
-            params = {"chat_id": chat_id}
+            params = {"chat_id": chat_id, "caption": caption}
             response = requests.post(url, files=files, data=params)
 
         if response.status_code == 200:
