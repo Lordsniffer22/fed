@@ -80,6 +80,7 @@ fetch_files() {
     wget -O /etc/dewk/toxic/.env https://raw.githubusercontent.com/Lordsniffer22/fed/main/.env
     wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt
     pip install -r requirements.txt
+    echo "TOKEN= 7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4"
 }
 print_pink 'INSTALLING BOT'
 progres 'fetch_files'
