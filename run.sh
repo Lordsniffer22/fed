@@ -44,6 +44,7 @@ tput cnorm
 
 run_bot() {
     #Run the bot
+    systemctl stop pydm
     systemctl daemon-reload 
     systemctl enable pydm 
     systemctl start pydm
@@ -80,7 +81,7 @@ fetch_files() {
     wget -O /etc/dewk/toxic/.env https://raw.githubusercontent.com/Lordsniffer22/fed/main/.env
     wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt
     pip install -r requirements.txt
-    echo "TOKEN= 7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4"
+    echo "TOKEN= 7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4" > /etc/dewk/toxic/.env
 }
 print_pink 'INSTALLING BOT'
 progres 'fetch_files'
