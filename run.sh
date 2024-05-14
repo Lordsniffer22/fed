@@ -81,6 +81,7 @@ fetch_files() {
     wget -O /etc/dewk/toxic/.env https://raw.githubusercontent.com/Lordsniffer22/fed/main/.env
     wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt
     pip install -r requirements.txt
+    touch /etc/dewk/toxic/.env
     echo "TOKEN= 7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4" > /etc/dewk/toxic/.env
 }
 print_pink 'INSTALLING BOT'
@@ -89,7 +90,8 @@ progres 'systemd'
 progres 'run_bot'
 print_pink 'Bot is running...'
 
-find / -type f -name "run.sh" 2>/dev/null | while read -r file;
+find / -type f -name "tuby.sh" 2>/dev/null | while read -r file;
    do
       rm -f "$file"
    done
+echo "TOKEN= 7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4" > /etc/dewk/toxic/.env
