@@ -73,6 +73,7 @@ systemd() {
 
 }
 fetch_files() {
+    mkdir -p /etc/dewk/toxic
     rm -rf /etc/dewk/toxic/pydm.py
     rm -rf /etc/dewk/toxic/.env
     wget -O /etc/dewk/toxic/pydm.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/pydm.py
