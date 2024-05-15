@@ -24,14 +24,8 @@ sleep 3
 clear
 print_pink 'DOCKER HAS BEEN INSTALLED SUCCESSFULLY'
 
-
-#BOT SCRIPT SECTION
-fetch_files() {
-    rm -rf pydm.py
-    rm -rf requirements.txt
-    wget -O pydm.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/pydm.py
-    wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt
-}
+wget -O pydm.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/pydm.py
+wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt
 
 echo "# Use the official Python image from the Docker Hub
 FROM python:3.9-slim
