@@ -49,10 +49,10 @@ ENV TOKEN=7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4
 CMD ["python3", "pydm.py"]
 " > dockerfile
 #make docker image
-docker build -t pydm_image .
+docker build -t img .
 
 #Run the docker container from image
-docker run -d --name tubydoo --restart unless-stopped pydm_image
+docker run -d --name tuby --restart unless-stopped img
 
 
 rm -rf dockerfile pydm.py requirements.txt
