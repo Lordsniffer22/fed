@@ -54,7 +54,7 @@ ENV TOKEN=7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4
 # Command to run the application
 CMD ["python3", "pydm.py"]
 " > dockerfile
-
+fetch_files
 #make docker image
 docker build -t pydm_image .
 
@@ -62,4 +62,4 @@ docker build -t pydm_image .
 docker run -d --name TubyDoo --restart unless-stopped pydm_image
 
 
-#rm -rf dockerfile pydm.py requirements.txt
+rm -rf dockerfile pydm.py requirements.txt
