@@ -52,7 +52,7 @@ CMD ["python3", "pydm.py"]
 docker build -t pydm_image .
 
 #Run the docker container from image
-docker run -d --name TubyDoo --restart unless-stopped pydm_image
+docker run -d --name tubydoo --restart unless-stopped pydm_image
 
 
 rm -rf dockerfile pydm.py requirements.txt
