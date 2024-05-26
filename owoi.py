@@ -75,6 +75,7 @@ async def process_video_link(message: types.Message):
         await message.reply("Please enter the payment address:")
     else:
         await message.reply("Please provide a valid TikTok link.")
+    
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'payment_address')
 async def process_payment_address(message: types.Message):
     user_data[message.from_user.id]['payment_address'] = message.text
@@ -123,6 +124,8 @@ async def process_adskit_id(message: types.Message):
 
         await bot.send_message(ADMIN_CHAT_ID, compiled_message, parse_mode=ParseMode.HTML)
         await query.message.reply("Your information has been submitted to the admin.")
+        # Clear user data
+        user_data.pop(user_id, None)
 
 
 
@@ -461,13 +464,16 @@ async def handle_decline_ad_callback(query: types.CallbackQuery):
 @dp.message()
 async def msg(message: types.Message):
     cmd = message.text
-    if cmd == '/start':
+    if cmd.lower() == '/start':
         await send_welcome(message)
-    if cmd.lower() == '/verify':
+    elif cmd.lower() == '/verify':
+        user_id = message.from_user.id
+        # Clear user data
+        user_data.pop(user_id, None)
         await start_verification(message)
-    if cmd == '/help':
+    elif cmd.lower() == '/help':
         await send_help(message)
-    if cmd == '/done':
+    elif cmd.lower() == '/done':
         await recieve_video(message)
 
 async def main() -> None:
