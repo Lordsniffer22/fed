@@ -91,26 +91,28 @@ async def process_video_link(message: types.Message):
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'payment_address')
 async def process_payment_address(message: types.Message):
     user_data[message.from_user.id]['payment_address'] = message.text
-    user_data[message.from_user.id]['step'] = 'adskit_id'
-    await message.reply("Please enter your Adskit ID:")
+    user_data[message.from_user.id]['step'] = 'order_id'
+    await message.reply("What Order ID is this Video meant for?\n\nHint: Check the Ad Placement Request you recieved.")
 
-@dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'adskit_id')
+@dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'order_id')
 async def process_adskit_id(message: types.Message):
     user_id = message.from_user.id
-    user_data[message.from_user.id]['adskit_id'] = message.text
+    user_data[message.from_user.id]['order_id'] = message.text
     video_link = user_data[message.from_user.id]['video_link']
     payment_address = user_data[message.from_user.id]['payment_address']
-    adskit_id = user_data[message.from_user.id]['adskit_id']
+    order_id = user_data[message.from_user.id]['order_id']
 
     compiled_message = (
-        f"Is this the Correct?\n\n"
-        f"Video Link: {video_link}\n"
-        f"Payment Address: {payment_address}\n"
-        f"Adskit ID: {adskit_id}"
+        f"Is this the Correct?"
+        f"\n───────────────────────\n"
+        f"➤Video Link: {video_link}\n"
+        f"➤Payment Address: {payment_address}\n"
+        f"➤Order ID: {order_id}"
+        f"\n\nBetter be sure of the payment info and order ID."
     )
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Sure!', callback_data=f"confirmed")]
+    [InlineKeyboardButton(text='Sure! 100%', callback_data=f"confirmed")]
     ])  # Some markup
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
@@ -125,13 +127,14 @@ async def process_adskit_id(message: types.Message):
 
         video_link = user_data[user_id]['video_link']
         payment_address = user_data[user_id]['payment_address']
-        adskit_id = user_data[user_id]['adskit_id']
+        order_id = user_data[user_id]['order_id']
 
         compiled_message = (
-            f"TikTok Video from @{query.from_user.username}:\n\n"
-            f"Video Link: {video_link}\n"
-            f"Momo Account: {payment_address}\n"
-            f"Adskit ID: {adskit_id}"
+            f"TikTok Video from @{query.from_user.username}:"
+            f"\n─────────────────────────\n"
+            f"➤Video Link: {video_link}\n"
+            f"➤Payment Addr: {payment_address}\n"
+            f"➤Order ID: {order_id}"
         )
 
         await bot.send_message(ADMIN_CHAT_ID, compiled_message, parse_mode=ParseMode.HTML)
@@ -342,9 +345,9 @@ async def handle_ad_photo(message: types.Message):
         reply_markup=builder.as_markup(),
         parse_mode=ParseMode.HTML)
 
-    await message.reply(f"Your Ad has been submitted. \n\nYour order ID is: <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours.", parse_mode=ParseMode.HTML)
+    await message.reply(f"Your Ad has been submitted.\n\nYour order ID is: <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours.", parse_mode=ParseMode.HTML)
     await asyncio.sleep(18)
-    await message.answer("Your Advert has been confirmed!\n\n"
+    await message.answer("⭐️Your Advert has been confirmed!\n───────────────────────\n\n"
                     "Make a payment that the TikToker set on Adspaces.\n\n"
                     "Payment Methods:\n───────────────────────\n"
                     "⊚Binance ID (copy): <code>772986361</code>\n\n"
@@ -421,7 +424,7 @@ async def handle_ad_content(message: types.Message):
                            reply_markup=builder.as_markup())
     await message.reply(f"Your Ad has been submitted. \n\nYour order ID is: <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you.", parse_mode=ParseMode.HTML)
     await asyncio.sleep(18)
-    await message.answer("Your Advert has been confirmed!\n\n"
+    await message.answer("⭐️Your Advert has been confirmed!\n───────────────────────\n\n"
                     "Make a payment that the TikToker set on Adspaces.\n\n"
                     "Payment Methods:\n───────────────────────\n"
                     "⊚Binance ID (copy): <code>772986361</code>\n\n"
@@ -430,7 +433,7 @@ async def handle_ad_content(message: types.Message):
                     "Immediately Report to us at adskity@gmail.com if you find issues with the ADs you paid for.", disable_web_page_preview=True)
     await asyncio.sleep(5)
     photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/example.jpg'  # Replace with your photo URL
-    await send_photo_from_url(message.chat.id, photo_url, "🤡 How to send proof of payment.\nExample format:\n\nNote: Order ID needed is the one on the Ad request we sent you.")
+    await send_photo_from_url(message.chat.id, photo_url, "🤡 How to send proof of payment.\nExample format:\n\nNote: Order ID needed is on the message you got immediately after submitting the advert.")
 
 
 
@@ -464,7 +467,7 @@ async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
         ad_content = (
             f"⭐️💰*Ad placement Request.*💰\n"
             "──────────────────────────\n"
-            "<i>- We request that you include this Advert in your next video:</i>\n\n"
+            "<i>- We request that you include this Advert in your next Tiktok video:</i>\n\n"
             "<b>Ad Content:</b>\n\n"
             f"<code>{raw_ad_content}</code>\n"
             "──────────────────────────\n"
@@ -524,7 +527,11 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     requester_id = int(parts[2])
     user_id = int(parts[3])
 
-    await bot.send_message(user_id, f'💰How to get paid\n══════════════════════════\n\n-->Send me the command: /done to this chat.\n\n✨You will then be asked to provide a few things like link to the video, order ID for the Ad request the video is addressing.\n\n✨You will also Specify your Payment address. \n\n🌟Mobile Money account is Accepted 📱\n\nThe review team will have to check the video and if confirmed, be ready to see payment in a few hours\n\nAttention: Deleting the Video Afterwards will lead to your account getting banned.')
+    await asyncio.sleep(3)
+    await bot.send_message(user_id, "🤩 Good Job!")
+    await asyncio.sleep(4)
+
+    await bot.send_message(user_id, f'💰How to get paid\n══════════════════════════\n\n-->Organise the video & include that Advert, then Send me the command: /done to this chat.\n\n✨You will then be asked to provide a few things like link to the video, order ID for the Ad request the video is addressing.\n\n✨You will also Specify your Payment address. \n\n🌟Mobile Money account is Accepted 📱\n\nThe review team will have to check the video and if confirmed, be ready to see payment in a few hours\n\nAttention: Deleting the Video Afterwards will lead to your account getting banned.')
 
     # Acknowledge the user's action
     await query.answer("Ad request accepted✅.")
