@@ -145,10 +145,12 @@ def load_all_data():
     for row in cursor.fetchall():
         user_data[row[0]] = json.loads(row[1])
 
-    cursor.execute("SELECT requester_id, data FROM ad_requests")
+    #cursor.execute("SELECT requester_id, data FROM ad_requests")
+    cursor.execute("SELECT user_id, data FROM ad_requests")
     for row in cursor.fetchall():
-        rows = cursor.fetchall()
-        return {row[0]: json.loads(row[1]) for row in rows}
+        user_id, data = row
+        ad_requests[user_id] = json.loads(data)
+    return ad_requests
 
     cursor.execute("SELECT content_id, data FROM ad_contents")
     for row in cursor.fetchall():
@@ -175,8 +177,11 @@ load_all_data()
 
 
 async def recieve_video(message: types.Message):
-    await message.reply("😍Glad you finished adding the Advert to your new Video\n\n"
-                        "Please enter the video link:")
+    okay = await message.reply("😍Glad you've finished adding the Advert to your new Video\n\n")
+    await asyncio.sleep(4)
+    await okay.delete()
+    await asyncio.sleep(1)
+    await message.reply("Please enter the video link:")
     user_data[message.from_user.id] = {'step': 'video_link'}
 
 def calculate_price_with_markup(price):
@@ -196,7 +201,9 @@ async def send_welcome(message: types.Message):
                             f"\n\nWe are glad you are here with us again😍\n"
                             f"╰┈➤Press: /help ")
     else:
-        await message.reply("Reach millions of potential customers on TikTok through us! \n\nWe connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\nType '/help' to learn more on how to get started!")
+        caption = "Reach millions of potential customers on TikTok through us! \n\nWe connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\nType '/help' to learn more on how to get started!"
+        photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/start.jpg'  # Replace with your photo URL
+        await send_photo_from_url(user_id, photo_url, caption=caption)
 async def send_help(message: types.Message):
     await message.reply("<b>This Bot now manages both TikTok content creators and Advertisers.</b>\n═══════════════════════════\n\n"
                         "<b>TikTokers</b>\n─────────────────\n\n"
@@ -221,6 +228,10 @@ async def start_verification(message: types.Message):
         'verification_step': 'awaiting_link',
         'unique_id': generate_unique_id()  # Generate and store the unique ID
     }
+    okay = await message.reply('You are now signing up as a TikToker!')
+    await asyncio.sleep(3)
+    await okay.delete()
+    await asyncio.sleep(1)
     await message.reply("🤝Let's begin.\n\nSend me a link to Your tiktok account or to any of your videos.🤷‍♂️")
 
 async def check_if_tiktok(message: types.Message):
@@ -351,7 +362,7 @@ async def handle_verification_link(message: types.Message):
         save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
         await message.reply("🤔What's Your TikTok Account Name?\n\n╰┈➤Help Advertisers Know its You😎 ")
     else:
-        await message.reply("Please provide a valid TikTok link.")
+        await message.reply("Please provide a valid TikTok link. Either way, you can press /cancel to quit")
 
 @dp.message(
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_profile_name')
@@ -411,6 +422,7 @@ async def handle_price(message: types.Message):
 
         user_data[user_id]['price'] = f"{currency} {new_price}"
         user_data[user_id]['verification_step'] = None
+        unique_id = user_data[user_id]['unique_id']  # Retrieve the unique ID
         save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
 
     builder = InlineKeyboardBuilder()
@@ -418,9 +430,7 @@ async def handle_price(message: types.Message):
     [InlineKeyboardButton(text='Verify', callback_data=f"verify_link_{user_id}")]
     ])  # Some markup
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
-    unique_id = user_data[user_id]['unique_id']  # Retrieve the unique ID
-    save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
-    # Notify the admin about the verification details
+
 
     await bot.send_message(ADMIN_CHAT_ID,
                            f"👮🏽‍♀️A TikTok Creator @{message.from_user.username}  Seeks Verification!\n"
@@ -438,7 +448,10 @@ async def handle_price(message: types.Message):
         [InlineKeyboardButton(text='See example', callback_data=f"check_the_sample_{user_id}")]
     ])
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
-
+    okay = await message.reply('Saving your registration form...!')
+    await asyncio.sleep(3)
+    await okay.delete()
+    await asyncio.sleep(1)
     await message.reply(f"Submitted Your Details for Verification. This usually takes 24 hours or less! Keep Alert🔊\n\n<i>💡Make sure you add your Adskit ID to your Bio Section on tiktok. It must stay visible, and should appear in the format below:</i>\n\n<code>Adskit ID: {unique_id}</code>", parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
 @dp.callback_query(lambda query: query.data.startswith('check_the_sample_'))
 async def handle_accept_ad_callback(query: types.CallbackQuery):
@@ -455,6 +468,7 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
 async def handle_verify_link_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
     user_id = int(query.data.split('_')[2])
+    requester_id = int(query.data.split('_')[2])
 
     builder2 = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -468,7 +482,10 @@ async def handle_verify_link_callback(query: types.CallbackQuery):
     await bot.send_message(user_id, f"Your Account has been Approved 🎉\n\n<b>What Next:</b>\n✨Advertising companies will glance at your TikTok account.  Focus on making it more appealing 🤗 \n\nKeep an eye @adskity\n\n✅<b>Your Adskit ID:</b> <code>{unique_id}</code>",
                            parse_mode=ParseMode.HTML)
     verified_users[user_id] = user_data[user_id]  # Add user to verified users
-    save_data('verified_users', user_id, user_data[user_id])  # Save advertiza to database
+    save_data('verified_users', user_id, user_data[user_id])
+    save_data('ad_requests', requester_id, user_data[user_id])
+    await query.answer('User has been verified Successfully!')
+
     # Send a message to the channel notifying about the verified link
     channel_id = '-1002061815083'  # Replace with your channel ID
     profile_link = user_data[user_id]['link']
@@ -480,6 +497,10 @@ async def handle_verify_link_callback(query: types.CallbackQuery):
                            disable_web_page_preview=True,
                            parse_mode=ParseMode.HTML,  # Set parse_mode to HTML
                            reply_markup=builder2.as_markup())
+
+
+    await bot.send_message(ADMIN_CHAT_ID,f"[■■■■ Verified] 100% ✅")
+
 @dp.callback_query(lambda query: query.data.startswith('place_ad_'))
 async def handle_place_ad_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
@@ -554,7 +575,7 @@ async def handle_ad_photo(message: types.Message):
     # Store the ad content in ad_contents
     ad_contents[requester_id] = {'ad_content': ad_content}
     save_data('ad_contents', requester_id, ad_contents[requester_id])  # Save ad_contents to database
-    save_data('ad_requests', requester_id, advertiza[requester_id])
+    #save_data('ad_requests', requester_id, advertiza[requester_id])
 
     # Prepare the "Send to Tiktoker" button
     builder = InlineKeyboardBuilder()
@@ -647,7 +668,7 @@ async def handle_ad_content(message: types.Message):
     # Store the ad content in ad_contents
     ad_contents[requester_id] = {'ad_content': ad_content}
     save_data('ad_contents', requester_id, ad_contents[requester_id])  # Save ad_contents to database
-    save_data('ad_requests', requester_id, ad_contents[requester_id])  # Save ad_contents to database
+    #save_data('ad_requests', requester_id, ad_contents[requester_id])  # Save ad_contents to database
 
 
     # Prepare the "Send to Tiktoker" button
@@ -678,13 +699,24 @@ async def handle_ad_content(message: types.Message):
                     "✅Other Fiat Currencies coming soon..\n\n"
                     "Immediately Report to us at adskity@gmail.com if you find issues with the ADs you paid for.", disable_web_page_preview=True, reply_markup=builder.as_markup())
 
-
 @dp.callback_query(lambda query: query.data.startswith('sendp_to_tiktoker_'))
 async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
     # Extract requester_id from the callback data
     requester_id = int(query.data.split('_')[3])
-    user_id = next((u for u in ad_requests[requester_id]), None)
-    order_id = advertiza[requester_id]['order_id']
+
+    print(f"Handling callback for requester_id: {requester_id}")
+    print(f"Current ad_requests: {ad_requests}")
+
+    # Check if requester_id is in ad_requests
+    if requester_id not in ad_requests:
+        await query.answer("Could not find the associated TikTok profile owner.")
+        return
+
+    # Retrieve user_id from ad_requests
+    user_data = ad_requests[requester_id]
+    user_id = next(iter(user_data), None)  # Get the first (and possibly only) key
+
+    order_id = advertiza.get(requester_id, {}).get('order_id', "No order ID")
 
     if not user_id:
         await query.answer("Could not find the associated TikTok profile owner.")
@@ -705,11 +737,7 @@ async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
 
     try:
         # Retrieve and format the ad content
-
-        # Retrieve the ad content
-        ad_data = ad_contents.get(requester_id, {})
-        raw_ad_content = ad_data.get('ad_content', "No ad content provided.")
-       # raw_ad_content = ad_contents.get(requester_id, "No ad content provided.")
+        raw_ad_content = ad_contents.get(requester_id, {}).get('ad_content', "No ad content provided.")
         ad_content = (
             f"⭐️💰*Ad placement Request.*💰\n"
             "──────────────────────────\n"
@@ -720,22 +748,19 @@ async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
             f"<b>Order ID: </b><code>{order_id}</code>")
         photo_id = photo_ids[-1]  # Use the highest resolution photo
 
-        builder = InlineKeyboardBuilder()
-        markup = InlineKeyboardMarkup(inline_keyboard=[
+        builder = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='Decline❌',
                                   callback_data=f"decline_ad_{requester_id}_{user_id}_{query.message.message_id}"),
              InlineKeyboardButton(text='Accept✅', callback_data=f"accept_ad_{requester_id}_{user_id}")]
         ])
-        builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
-        ad_request_message = await bot.send_photo(user_id, photo=photo_id, caption=ad_content, parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
+        ad_request_message = await bot.send_photo(user_id, photo=photo_id, caption=ad_content, parse_mode=ParseMode.HTML, reply_markup=builder)
         ad_request_messages[user_id] = ad_request_message.message_id  # Store the message ID
 
         # Acknowledge the user's action
         await query.answer("Ad content sent to the TikTok profile owner.")
     except Exception as e:
         print(f"Error sending photo: {e}")
-
 
 
 
