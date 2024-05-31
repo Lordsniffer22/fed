@@ -58,7 +58,7 @@ cursor.execute('''
 
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS ad_requests (
-        request_id TEXT PRIMARY KEY,
+        requester_id TEXT PRIMARY KEY,
         data TEXT
     )
 ''')
@@ -145,10 +145,10 @@ def load_all_data():
     for row in cursor.fetchall():
         user_data[row[0]] = json.loads(row[1])
 
-    cursor.execute("SELECT user_id, data FROM ad_requests")
+    cursor.execute("SELECT requester_id, data FROM ad_requests")
     for row in cursor.fetchall():
-        user_id, data = row
-        ad_requests[user_id] = json.loads(data)
+        rows = cursor.fetchall()
+        return {row[0]: json.loads(row[1]) for row in rows}
 
     cursor.execute("SELECT content_id, data FROM ad_contents")
     for row in cursor.fetchall():
@@ -194,20 +194,20 @@ async def send_welcome(message: types.Message):
     if user_id in verified_users:
         await message.reply(f"Welcome Back {full_name}!"
                             f"\n\nWe are glad you are here with us again😍\n"
-                            f"╰┈➤Press: /help for help || ┈➤Press /done to submit")
+                            f"╰┈➤Press: /help ")
     else:
-        await message.reply("Reach millions of potential customers on TikTok through us! \n\nWe connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\nType '/help' to learn how to register your TikTok account with Ad Spaces and get started!")
+        await message.reply("Reach millions of potential customers on TikTok through us! \n\nWe connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\nType '/help' to learn more on how to get started!")
 async def send_help(message: types.Message):
-    await message.reply("This Bot now manages both TikTok content creators and Advertisers.\n═══════════════════════════\n\n"
+    await message.reply("<b>This Bot now manages both TikTok content creators and Advertisers.</b>\n═══════════════════════════\n\n"
                         "<b>TikTokers</b>\n─────────────────\n\n"
                         "✨- To sign up, send /register to this chat and follow the prompts.\n\n"  
-                        "-To submit your video where you have included the Advert, send /done to this chat and follow the prompts\n\n"
-                        "⚠️Note: Adskit (Tiktok spaces) Is not owned by ByteDance Ltd (TikTok).\n\n"
+                        "✨- To submit your video where you have included the Advert, send /done to this chat and follow the prompts\n\n"                        
                         "<b>Advertisers</b>\n─────────────────\n\n"
-                        "🗽-Advertisers Dont need to sign up. (You are flexible)\n\n"
+                        "🗽- Advertisers Dont need to sign up. (You are flexible)\n\n"
                         "⊷▷Visit @adskity and look for a tiktoker you think will suit your marketing needs\n\n"
                         "⊷▷Press on 'Place AD' button to submit your request. We shall send you the Instructions through this bot.\n\n"
-                        "Adskit (TikTok Spaces) Will never ask for your tiktok account login credentials or Passwords to your payment wallets!\n\n",
+                        "<b>👉Confirm this:</b>\n─────────────────\nThe Adskit ID displayed on each Ad Space in the channel is also there on the Tiktoker's account if you visit his/her tiktok account.\n\n"
+                        "<b><i>⚠️Note: Adskit (Tiktok spaces) Is not owned by ByteDance Ltd (TikTok).</i></b>\n\n",
                         parse_mode=ParseMode.HTML)
 async def start_verification(message: types.Message):
     user_id = message.from_user.id
@@ -236,24 +236,36 @@ async def handle_cancel(message: types.Message):
         await message.reply("The current process has been cancelled. You can start again if you wish.")
     else:
         await message.reply("There is no ongoing process to cancel.")
-
-@dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'video_link')
-async def process_video_link(message: types.Message):
+async def cancel_user_reg(message: types.Message):
+    if message.text.lower() == '/cancel':
+        user_data[message.from_user.id]['verification_step'] = None
+        save_data('user_data', message.from_user.id, user_data[message.from_user.id])
+        await message.reply("Operation Terminated. You can start again anytime if you wish.")
+        return True
+    return False
+async def cancel_done(message: types.Message):
     if message.text.lower() == '/cancel':
         user_data[message.from_user.id]['step'] = None
         save_data('user_data', message.from_user.id, user_data[message.from_user.id])
         await message.reply("Operation Terminated. You can start again anytime if you wish.")
+        return True
+    return False
+@dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'video_link')
+async def process_video_link(message: types.Message):
+    if await cancel_done(message):
         return
     if await check_if_tiktok(message):
         user_data[message.from_user.id]['video_link'] = message.text
         user_data[message.from_user.id]['step'] = 'payment_address'
         await message.reply("Please enter your payment address\n\n"
-                            "It can be a phone number, Binance ID or Paypal")
+                            "It can be a phone number, Binance/Payeer ID or Chipper Cash tag")
     else:
         await message.reply("Please provide a valid TikTok link. \n\nSend /cancel to quit")
 
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'payment_address')
 async def process_payment_address(message: types.Message):
+    if await cancel_done(message):
+        return
     user_data[message.from_user.id]['payment_address'] = message.text
     user_data[message.from_user.id]['step'] = 'order_id'
     await message.reply("What Order ID is this Video meant for?\n\nHint: Check the Ad Placement Request you recieved.")
@@ -261,6 +273,8 @@ async def process_payment_address(message: types.Message):
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'order_id')
 async def process_adskit_id(message: types.Message):
     user_id = message.from_user.id
+    if await cancel_done(message):
+        return
     user_data[message.from_user.id]['order_id'] = message.text
     video_link = user_data[message.from_user.id]['video_link']
     payment_address = user_data[message.from_user.id]['payment_address']
@@ -272,7 +286,7 @@ async def process_adskit_id(message: types.Message):
         f"➤Video Link: {video_link}\n"
         f"➤Payment Address: {payment_address}\n"
         f"➤Order ID: {order_id}"
-        f"\n\nBetter be sure of the payment info and order ID."
+        f"\n\nBetter be sure of the payment info and order ID. If wrong press: /cancel"
     )
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -319,13 +333,18 @@ async def handle_payment_progress_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
     user_id = int(query.data.split('_')[2])
    # order_id = user_data[user_id]['order_id']
-    await bot.send_message(user_id, f"We processing your Payment. Expect it in less that 24 hours",
+    await bot.send_message(user_id, f"We are processing your Payment. Expect it in less that 24 hours",
                            parse_mode=ParseMode.HTML)
+
+
+#USER REGISTRATION SECTION
 
 # Inside the handle_verification_link function
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_link')
 async def handle_verification_link(message: types.Message):
     user_id = message.from_user.id
+    if await cancel_user_reg(message):
+        return
     if await check_if_tiktok(message):
         user_data[user_id]['link'] = message.text.strip()
         user_data[user_id]['verification_step'] = 'awaiting_profile_name'
@@ -337,6 +356,8 @@ async def handle_verification_link(message: types.Message):
 @dp.message(
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_profile_name')
 async def handle_profile_name(message: types.Message):
+    if await cancel_user_reg(message):
+        return
     user_id = message.from_user.id
     if user_id not in user_data:
         user_data[user_id] = {}
@@ -352,6 +373,8 @@ async def handle_profile_name(message: types.Message):
 @dp.message(
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_followers')
 async def handle_followers(message: types.Message):
+    if await cancel_user_reg(message):
+        return
     user_id = message.from_user.id
     user_data[user_id]['followers'] = message.text.strip()
     user_data[user_id]['verification_step'] = 'awaiting_location'
@@ -363,6 +386,8 @@ async def handle_followers(message: types.Message):
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_location')
 async def handle_views(message: types.Message):
     user_id = message.from_user.id
+    if await cancel_user_reg(message):
+        return
     user_data[user_id]['location'] = message.text.strip()
     user_data[user_id]['verification_step'] = 'awaiting_price'
     save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
@@ -372,6 +397,8 @@ async def handle_views(message: types.Message):
 @dp.message(
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_price')
 async def handle_price(message: types.Message):
+    if await cancel_user_reg(message):
+        return
     user_id = message.from_user.id
     price_text = message.text.strip()
 
@@ -394,6 +421,7 @@ async def handle_price(message: types.Message):
     unique_id = user_data[user_id]['unique_id']  # Retrieve the unique ID
     save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
     # Notify the admin about the verification details
+
     await bot.send_message(ADMIN_CHAT_ID,
                            f"👮🏽‍♀️A TikTok Creator @{message.from_user.username}  Seeks Verification!\n"
                             f"─────────────────────────────\n\n"
@@ -404,8 +432,24 @@ async def handle_price(message: types.Message):
                            f"Link: {user_data[user_id]['link']}\n"
                            f"➤Account ID: {unique_id}\n\n"
                            f"Please verify the link.", reply_markup=builder.as_markup())
-    await message.reply(f"Submitted Your Details for Verification. This usually takes 24 hours or less! Stay Tuned🔊\n\n<i>Make sure you add your Adskit ID to your Bio Section on tiktok. It must stay visible, and should appear in the format below:</i>\n\n<code>Adskit ID: {unique_id}</code>", parse_mode=ParseMode.HTML)
+    # Prepare the "Send " button
+    builder = InlineKeyboardBuilder()
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='See example', callback_data=f"check_the_sample_{user_id}")]
+    ])
+    builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
+    await message.reply(f"Submitted Your Details for Verification. This usually takes 24 hours or less! Keep Alert🔊\n\n<i>💡Make sure you add your Adskit ID to your Bio Section on tiktok. It must stay visible, and should appear in the format below:</i>\n\n<code>Adskit ID: {unique_id}</code>", parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
+@dp.callback_query(lambda query: query.data.startswith('check_the_sample_'))
+async def handle_accept_ad_callback(query: types.CallbackQuery):
+    parts = query.data.split('_')
+    requester_id = int(parts[3])
+
+    await asyncio.sleep(3)
+    # Send the photo from URL with caption "Lorem ipsum"
+    caption = ""
+    photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/example2.jpg'  # Replace with your photo URL
+    await send_photo_from_url(requester_id, photo_url, caption=caption)
 
 @dp.callback_query(lambda query: query.data.startswith('verify_link_'))
 async def handle_verify_link_callback(query: types.CallbackQuery):
@@ -470,7 +514,7 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
     await bot.send_message(user_id,
                            "🎊Good News!😀\n\nAn advertiser just glanced at your  TikTok Ad Space🎉\n\n💐We will let you know if he requests to advertise with you ✨")
     # Send instructions to the requester
-    await asyncio.sleep(10)
+    await asyncio.sleep(3)
 
     instructions = ("Advert Placement Guide🤓\n══════════════════\n\n"
                     "Prepare and send us your Advert in any of these formats:\n"
@@ -481,23 +525,9 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
                     )
 
     await bot.send_message(requester_id, instructions)
-#@dp.callback_query(lambda query: query.data.startswith('tell_him_'))
-#async def handle_tell_him_callback(query: types.CallbackQuery):
-    ## Extract requester_id from the callback data
- #   requester_id = int(query.data.split('_')[2])
 
-    ## Send instructions to the requester
- #   instructions = ("Advert Placement Guide🤓\n══════════════════\n\n"
-  #                  "Prepare and send us your Advert in any of these formats:\n"
-  #                  "-Text only\n"
-   #                 "-Picture with caption.\n"
-    #                "-Video with Caption\n\n"
-     #               "🛑Please Make sure your texts or Video/Photo caption start with #Adcontent as the trigger."
-      #              )
 
-    #await bot.send_message(requester_id, instructions)
 
-# This function will handle sending the photo from URL with the specified caption
 async def send_photo_from_url(chat_id: int, photo_url: str, caption: str):
     await bot.send_photo(chat_id, photo=photo_url, caption=caption)
 
@@ -512,6 +542,7 @@ async def handle_ad_photo(message: types.Message):
     order_id = advertiza[requester_id]['order_id']
     save_data('advertiza', requester_id, advertiza[requester_id])
 
+
     if requester_id not in ad_requests:
         await message.reply("You have not requested to place an ad yet. Please click the 'Place AD' button in the channel.")
         return
@@ -523,6 +554,7 @@ async def handle_ad_photo(message: types.Message):
     # Store the ad content in ad_contents
     ad_contents[requester_id] = {'ad_content': ad_content}
     save_data('ad_contents', requester_id, ad_contents[requester_id])  # Save ad_contents to database
+    save_data('ad_requests', requester_id, advertiza[requester_id])
 
     # Prepare the "Send to Tiktoker" button
     builder = InlineKeyboardBuilder()
@@ -549,7 +581,7 @@ async def handle_ad_photo(message: types.Message):
     ])
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
     await message.answer("⭐️Your Advert has been confirmed!\n───────────────────────\n\n"
-                    "Make a payment that the TikToker set on <a href='t.me/adskity'>Adspaces</a>.\n\n"
+                    "Make a payment that the TikToker set on <a href='t.me/adskity'>TikTok spaces</a>Channel.\n\n"
                     "Payment Methods:\n───────────────────────\n\n"
                     "<b>💰Binance ID:</b> <code>772986361</code>\n\n"
                     f"⚡<b>Momo Payments:</b> <a href='t.me/AdskitBot/Payment'>Click2Pay</a>\n\n"
@@ -639,7 +671,7 @@ async def handle_ad_content(message: types.Message):
     ])
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
     await message.answer("⭐️Your Advert has been confirmed!\n───────────────────────\n\n"
-                    "Make a payment that the TikToker set on <a href='t.me/adskity'>Adspaces</a>.\n\n"
+                    "Make a payment that the TikToker set on <a href='t.me/adskity'>TikTok spaces</a>Channel.\n\n"
                     "Payment Methods:\n───────────────────────\n\n"
                     "<b>💰Binance ID:</b> <code>772986361</code>\n\n"
                     f"⚡<b>Momo Payments:</b> <a href='t.me/AdskitBot/Payment'>Click2Pay</a>\n\n"
@@ -753,7 +785,17 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     await bot.send_message(user_id, "🤩 Good Job!")
     await asyncio.sleep(4)
 
-    await bot.send_message(user_id, f'💰How to get paid\n══════════════════════════\n\n-->Organise the video & include that Advert, then Send me the command: /done to this chat.\n\n✨You will then be asked to provide a few things like link to the video, order ID for the Ad request the video is addressing.\n\n✨You will also Specify your Payment address. \n\n🌟Mobile Money account is Accepted 📱\n\nThe review team will have to check the video and if confirmed, be ready to see payment in a few hours\n\nAttention: Deleting the Video Afterwards will lead to your account getting banned.')
+    await bot.send_message(user_id, f'<strong>💰How to get paid</strong>\n══════════════════════════\n\n-->Organise the video & include that Advert, then Send me the command: /done to this chat.\n\n'
+                                    f'✨You will then be asked to provide a few things like the link to the video, order ID for the Ad request the video is addressing.\n\n'
+                                    f'🌟Accepted Payment Methods \n'
+                                    f'──────────────────────\n'
+                                    f'👉Mobile Money\n'
+                                    f'👉Binance(international)\n'
+                                    f'👉Payeer(international)\n'
+                                    f'👉Chipper Cash📱\n\n'
+                                    f'🌟 If Binance, say for example "Binance ID: 868665". Do the same for others.\n\n'
+                                    f'The review team will have to check the video and if confirmed, be ready to see payment in a few hours\n\n'
+                                    f'<b><u>Attention:</u></b> \n<i>Deleting the Video Afterwards will lead to your account getting banned.</i>', parse_mode=ParseMode.HTML)
 
     # Acknowledge the user's action
     await query.answer("Ad request accepted✅.")
