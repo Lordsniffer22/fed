@@ -292,7 +292,7 @@ async def process_adskit_id(message: types.Message):
     order_id = user_data[message.from_user.id]['order_id']
 
     compiled_message = (
-        f"Is this the Correct?"
+        f"Is this Correct?"
         f"\n───────────────────────\n"
         f"➤Video Link: {video_link}\n"
         f"➤Payment Address: {payment_address}\n"
@@ -305,7 +305,7 @@ async def process_adskit_id(message: types.Message):
     ])  # Some markup
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
-    await message.reply(compiled_message, reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML)
+    confirma = await message.reply(compiled_message, reply_markup=builder.as_markup(), disable_web_page_preview=True, parse_mode=ParseMode.HTML)
 
     @dp.callback_query(lambda query: query.data == 'confirmed')
     async def handle_confirmation(query: types.CallbackQuery):
@@ -333,11 +333,12 @@ async def process_adskit_id(message: types.Message):
         )
 
         await bot.send_message(ADMIN_CHAT_ID, compiled_message, reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML)
-        jimson = await query.message.reply("Your information has been submitted for moderation.")
+        await query.message.answer("Your information has been submitted for moderation.\nExpect to recieve your funds in less than 24 hours.")
         # Clear user data
         user_data.pop(user_id, None)
-        await asyncio.sleep(8)
-        await jimson.delete()
+        await asyncio.sleep(3)
+
+        await confirma.delete()
 
 @dp.callback_query(lambda query: query.data.startswith('payment_process_'))
 async def handle_payment_progress_callback(query: types.CallbackQuery):
@@ -739,7 +740,7 @@ async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
         # Retrieve and format the ad content
         raw_ad_content = ad_contents.get(requester_id, {}).get('ad_content', "No ad content provided.")
         ad_content = (
-            f"⭐️💰*Ad placement Request.*💰\n"
+            f"⭐️💰<b>Ad placement Request.</b>💰\n"
             "──────────────────────────\n"
             "<i>- We request that you include this Advert in your next Tiktok video:</i>\n\n"
             "<b>Ad Content:</b>\n\n"
@@ -810,7 +811,7 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     await bot.send_message(user_id, "🤩 Good Job!")
     await asyncio.sleep(4)
 
-    await bot.send_message(user_id, f'<strong>💰How to get paid</strong>\n══════════════════════════\n\n-->Organise the video & include that Advert, then Send me the command: /done to this chat.\n\n'
+    await bot.send_message(user_id, f'<strong>💰How to get paid</strong>\n══════════════════════════\n\n-->Organise the video & include that Advert, then Send this command: /done to this chat.\n\n'
                                     f'✨You will then be asked to provide a few things like the link to the video, order ID for the Ad request the video is addressing.\n\n'
                                     f'🌟Accepted Payment Methods \n'
                                     f'──────────────────────\n'
