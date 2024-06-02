@@ -573,9 +573,7 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
                            f"I just sent him the instructions in about 10 seconds",
                            )
     await query.answer("✅Request submitted. Check the Bot to complete the AD placement process😀")
-    # Notify the profile owner about the ad request
-    await bot.send_message(user_id,
-                           "🎊Good News!😀\n\nAn advertiser just glanced at your  TikTok Ad Space🎉\n\n💐We will let you know if he requests to advertise with you ✨")
+
     # Send instructions to the requester
     await asyncio.sleep(3)
 
