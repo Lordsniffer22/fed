@@ -36,7 +36,7 @@ else
 fi
 
 # Download the application files
-wget -O pydm.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/owoi.py &>/dev/null
+wget -O owoi.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/owoi.py &>/dev/null
 wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt &>/dev/null
 
 # Create a Dockerfile
