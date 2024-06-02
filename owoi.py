@@ -26,7 +26,7 @@ import sqlite3
 load_dotenv()
 
 # Telegram bot token
-TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 ADMIN_CHAT_ID = '6448112643'
 
 # Dispatcher initialization
