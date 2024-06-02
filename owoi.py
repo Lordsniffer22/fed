@@ -10,6 +10,7 @@ import aiohttp
 
 import json
 
+import requests
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
 from dotenv import load_dotenv
@@ -25,7 +26,7 @@ import sqlite3
 load_dotenv()
 
 # Telegram bot token
-TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 ADMIN_CHAT_ID = '6448112643'
 
 # Dispatcher initialization
@@ -118,6 +119,7 @@ advertiza = {}
 ad_request_messages = {}
 payments = {}
 verified_users = {}
+verif_reqs = {}
 
 def save_data(table, key, data):
     data_to_save = data.copy()  # Create a copy of the data dictionary
@@ -428,12 +430,13 @@ async def handle_price(message: types.Message):
 
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Verify', callback_data=f"verify_link_{user_id}")]
+    [InlineKeyboardButton(text='Decline', callback_data=f"decline_link_{user_id}"),
+    InlineKeyboardButton(text='Approve', callback_data=f"verify_link_{user_id}")]
     ])  # Some markup
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
 
-    await bot.send_message(ADMIN_CHAT_ID,
+    reqx = await bot.send_message(ADMIN_CHAT_ID,
                            f"👮🏽‍♀️A TikTok Creator @{message.from_user.username}  Seeks Verification!\n"
                             f"─────────────────────────────\n\n"
                            f"TikTok Name: {user_data[user_id]['profile_name']}\n"
@@ -443,6 +446,7 @@ async def handle_price(message: types.Message):
                            f"Link: {user_data[user_id]['link']}\n"
                            f"➤Account ID: {unique_id}\n\n"
                            f"Please verify the link.", reply_markup=builder.as_markup())
+    verif_reqs[user_id] = reqx.message_id
     # Prepare the "Send " button
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -465,6 +469,7 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/example2.jpg'  # Replace with your photo URL
     await send_photo_from_url(requester_id, photo_url, caption=caption)
 
+#  Approve user registration
 @dp.callback_query(lambda query: query.data.startswith('verify_link_'))
 async def handle_verify_link_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
@@ -501,7 +506,12 @@ async def handle_verify_link_callback(query: types.CallbackQuery):
 
 
     await bot.send_message(ADMIN_CHAT_ID,f"[■■■■ Verified] 100% ✅")
-
+    # Delete the previous ad request message
+    print(verif_reqs)
+    if user_id in verif_reqs:
+        await asyncio.sleep(3)
+        await bot.delete_message(chat_id=user_id, message_id=verif_reqs[user_id])
+        del verif_reqs[user_id]
 @dp.callback_query(lambda query: query.data.startswith('place_ad_'))
 async def handle_place_ad_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
