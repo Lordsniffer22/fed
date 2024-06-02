@@ -469,6 +469,34 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/example2.jpg'  # Replace with your photo URL
     await send_photo_from_url(requester_id, photo_url, caption=caption)
 
+
+# Handler for declining the link
+@dp.callback_query(lambda query: query.data.startswith('decline_link_'))
+async def handle_decline_link_callback(query: types.CallbackQuery):
+    user_id = int(query.data.split('_')[2])
+
+    # Notify the user that their registration has been declined
+    await bot.send_message(user_id, "Your Account has been not been Approved.🙊 \n\n"
+                                    "-Here are some stuff you need to fix.\n"
+                                    "─────────────────────────────\n"
+                                    "-Make sure you have at least 5k and above Followers.\n"
+                                    "-You need to put your Adskit ID on your TikTok Bio and it must stay visible.\n"
+                                    "-The names you submitted during registration should be the ones Reflected on your TikTok account."
+                                    "\n\nYou Can /REGISTER again after making sure you resolved the issue.")
+    await asyncio.sleep(3)
+
+    # Delete the admin message
+    if user_id in verif_reqs:
+        message_id = verif_reqs[user_id]
+        try:
+            await bot.delete_message(chat_id=ADMIN_CHAT_ID, message_id=message_id)
+        except Exception as e:
+            print(f"Error deleting message: {e}")
+
+    await query.answer('User registration has been declined.')
+
+
+
 #  Approve user registration
 @dp.callback_query(lambda query: query.data.startswith('verify_link_'))
 async def handle_verify_link_callback(query: types.CallbackQuery):
@@ -478,24 +506,31 @@ async def handle_verify_link_callback(query: types.CallbackQuery):
 
     builder2 = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Place AD', callback_data=f"place_ad_{user_id}")]
-    ])  # Some markup
+        [InlineKeyboardButton(text='Place AD', callback_data=f"place_ad_{user_id}")]
+    ])
     builder2.attach(InlineKeyboardBuilder.from_markup(markup))
 
     unique_id = user_data[user_id]['unique_id']
 
+    # Delete the admin message first
+    if user_id in verif_reqs:
+        message_id = verif_reqs[user_id]
+        try:
+            await bot.delete_message(chat_id=ADMIN_CHAT_ID, message_id=message_id)
+        except Exception as e:
+            print(f"Error deleting message: {e}")
+
     # Notify the user that their link has been verified
-    await bot.send_message(user_id, f"Your Account has been Approved 🎉\n\n<b>What Next:</b>\n✨Advertising companies will glance at your TikTok account.  Focus on making it more appealing 🤗 \n\nKeep an eye @adskity\n\n✅<b>Your Adskit ID:</b> <code>{unique_id}</code>",
+    await bot.send_message(user_id, f"Your Account has been Approved 🎉\n\n<b>What Next:</b>\n✨Advertising companies will glance at your TikTok account. Focus on making it more appealing 🤗 \n\nKeep an eye @adskity\n\n✅<b>Your Adskit ID:</b> <code>{unique_id}</code>",
                            parse_mode=ParseMode.HTML)
     verified_users[user_id] = user_data[user_id]  # Add user to verified users
     save_data('verified_users', user_id, user_data[user_id])
     save_data('ad_requests', requester_id, user_data[user_id])
-    await query.answer('User has been verified Successfully!')
+    await query.answer('User has been verified successfully!')
 
     # Send a message to the channel notifying about the verified link
     channel_id = '-1002061815083'  # Replace with your channel ID
     profile_link = user_data[user_id]['link']
-    # Create the clickable hyperlink
     profile_link_html = f"<a href='{profile_link}'>CLICK</a>"
 
     await bot.send_message(channel_id,
@@ -504,14 +539,10 @@ async def handle_verify_link_callback(query: types.CallbackQuery):
                            parse_mode=ParseMode.HTML,  # Set parse_mode to HTML
                            reply_markup=builder2.as_markup())
 
+    await bot.send_message(ADMIN_CHAT_ID, f"[■■■■ Verified] 100% ✅\nUser: <b>{user_data[user_id]['profile_name']}</b>",
+                           parse_mode=ParseMode.HTML)
 
-    await bot.send_message(ADMIN_CHAT_ID,f"[■■■■ Verified] 100% ✅")
-    # Delete the previous ad request message
-    print(verif_reqs)
-    if user_id in verif_reqs:
-        await asyncio.sleep(3)
-        await bot.delete_message(chat_id=user_id, message_id=verif_reqs[user_id])
-        del verif_reqs[user_id]
+
 @dp.callback_query(lambda query: query.data.startswith('place_ad_'))
 async def handle_place_ad_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
