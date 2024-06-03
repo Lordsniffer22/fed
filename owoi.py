@@ -19,15 +19,21 @@ from datetime import datetime, timedelta
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InputFile
+from aiogram.methods import SendChatAction
 import sqlite3
 
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Telegram bot token
+# Telegram bot token (TEST MODE)
+#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+# Telegram bot token (PRODUCTION MODE)
 TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+#main Admin
 ADMIN_CHAT_ID = '6448112643'
+# List of admin IDs that can verify accountss
+ADMIN_IDS = [6448112643, 5863112798]
 
 # Dispatcher initialization
 dp = Dispatcher()
@@ -246,21 +252,24 @@ async def handle_cancel(message: types.Message):
     if user_data.get(user_id, {}).get('step') == 'video_link':
         user_data[user_id]['step'] = None
         save_data('user_data', user_id, user_data[user_id])  # Save the updated data
-        await message.reply("The current process has been cancelled. You can start again if you wish.")
+        await message.reply("The current process has been cancelled. You can start again if you wish.\n"
+                            "For Help: /help")
     else:
         await message.reply("There is no ongoing process to cancel.")
 async def cancel_user_reg(message: types.Message):
     if message.text.lower() == '/cancel':
         user_data[message.from_user.id]['verification_step'] = None
         save_data('user_data', message.from_user.id, user_data[message.from_user.id])
-        await message.reply("Operation Terminated. You can start again anytime if you wish.")
+        await message.reply("Operation Terminated. You can start again anytime if you wish.\n"
+                            "For Help: /help")
         return True
     return False
 async def cancel_done(message: types.Message):
     if message.text.lower() == '/cancel':
         user_data[message.from_user.id]['step'] = None
         save_data('user_data', message.from_user.id, user_data[message.from_user.id])
-        await message.reply("Operation Terminated. You can start again anytime if you wish.")
+        await message.reply("Operation Terminated. You can start again anytime if you wish.\n"
+                            "For Help: /help")
         return True
     return False
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'video_link')
@@ -408,8 +417,7 @@ async def handle_views(message: types.Message):
     await message.reply("How much do you charge for an Advert?.\n\n⊚ Include Your Currency ( eg $5 or UGX 20,000, etc)\n\n╰┈➤A lower price brings more advertisers to you. Set wisely!")
 
 
-@dp.message(
-    lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_price')
+@dp.message(lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_price')
 async def handle_price(message: types.Message):
     if await cancel_user_reg(message):
         return
@@ -430,24 +438,27 @@ async def handle_price(message: types.Message):
 
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
-    [InlineKeyboardButton(text='Decline', callback_data=f"decline_link_{user_id}"),
-    InlineKeyboardButton(text='Approve', callback_data=f"verify_link_{user_id}")]
+        [InlineKeyboardButton(text='Decline', callback_data=f"decline_link_{user_id}"),
+         InlineKeyboardButton(text='Approve', callback_data=f"verify_link_{user_id}")]
     ])  # Some markup
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
+    reqx_messages = []
+    for admin_id in ADMIN_IDS:
+        reqx = await bot.send_message(admin_id,
+                                      f"👮🏽‍♀️A TikTok Creator @{message.from_user.username} Seeks Verification!\n"
+                                      f"─────────────────────────────\n\n"
+                                      f"TikTok Name: {user_data[user_id]['profile_name']}\n"
+                                      f"Followers: {user_data[user_id]['followers']}\n"
+                                      f"Location: {user_data[user_id]['location']}\n"
+                                      f"Price Per Ad: {user_data[user_id]['price']}\n\n"
+                                      f"Link: {user_data[user_id]['link']}\n"
+                                      f"➤Account ID: {unique_id}\n\n"
+                                      f"Please verify the link.", reply_markup=builder.as_markup())
+        reqx_messages.append((admin_id, reqx.message_id))
 
-    reqx = await bot.send_message(ADMIN_CHAT_ID,
-                           f"👮🏽‍♀️A TikTok Creator @{message.from_user.username}  Seeks Verification!\n"
-                            f"─────────────────────────────\n\n"
-                           f"TikTok Name: {user_data[user_id]['profile_name']}\n"
-                           f"Followers: {user_data[user_id]['followers']}\n"
-                           f"Location: {user_data[user_id]['location']}\n"
-                           f"Price Per Ad: {user_data[user_id]['price']}\n\n"
-                           f"Link: {user_data[user_id]['link']}\n"
-                           f"➤Account ID: {unique_id}\n\n"
-                           f"Please verify the link.", reply_markup=builder.as_markup())
-    verif_reqs[user_id] = reqx.message_id
-    # Prepare the "Send " button
+    verif_reqs[user_id] = reqx_messages
+    # Prepare the "Send" button
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text='See example', callback_data=f"check_the_sample_{user_id}")]
@@ -457,7 +468,8 @@ async def handle_price(message: types.Message):
     await asyncio.sleep(3)
     await okay.delete()
     await asyncio.sleep(1)
-    await message.reply(f"Submitted Your Details for Verification. This usually takes 24 hours or less! Keep Alert🔊\n\n<i>💡Make sure you add your Adskit ID to your Bio Section on tiktok. It must stay visible, and should appear in the format below:</i>\n\n<code>Adskit ID: {unique_id}</code>", parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
+    await message.reply(f"Submitted Your Details for Verification. This usually takes 24 hours or less! Keep Alert🔊\n\n<i>💡Make sure you add your Adskit ID to your Bio Section on TikTok. It must stay visible, and should appear in the format below:</i>\n\n<code>Adskit ID: {unique_id}</code>", parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
+
 @dp.callback_query(lambda query: query.data.startswith('check_the_sample_'))
 async def handle_accept_ad_callback(query: types.CallbackQuery):
     parts = query.data.split('_')
@@ -468,7 +480,6 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     caption = ""
     photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/example2.jpg'  # Replace with your photo URL
     await send_photo_from_url(requester_id, photo_url, caption=caption)
-
 
 # Handler for declining the link
 @dp.callback_query(lambda query: query.data.startswith('decline_link_'))
@@ -487,17 +498,15 @@ async def handle_decline_link_callback(query: types.CallbackQuery):
 
     # Delete the admin message
     if user_id in verif_reqs:
-        message_id = verif_reqs[user_id]
-        try:
-            await bot.delete_message(chat_id=ADMIN_CHAT_ID, message_id=message_id)
-        except Exception as e:
-            print(f"Error deleting message: {e}")
+        for admin_id, message_id in verif_reqs[user_id]:
+            try:
+                await bot.delete_message(chat_id=admin_id, message_id=message_id)
+            except Exception as e:
+                print(f"Error deleting message: {e}")
 
     await query.answer('User registration has been declined.')
 
-
-
-#  Approve user registration
+# Approve user registration
 @dp.callback_query(lambda query: query.data.startswith('verify_link_'))
 async def handle_verify_link_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
@@ -514,11 +523,11 @@ async def handle_verify_link_callback(query: types.CallbackQuery):
 
     # Delete the admin message first
     if user_id in verif_reqs:
-        message_id = verif_reqs[user_id]
-        try:
-            await bot.delete_message(chat_id=ADMIN_CHAT_ID, message_id=message_id)
-        except Exception as e:
-            print(f"Error deleting message: {e}")
+        for admin_id, message_id in verif_reqs[user_id]:
+            try:
+                await bot.delete_message(chat_id=admin_id, message_id=message_id)
+            except Exception as e:
+                print(f"Error deleting message: {e}")
 
     # Notify the user that their link has been verified
     await bot.send_message(user_id, f"Your Account has been Approved 🎉\n\n<b>What Next:</b>\n✨Advertising companies will glance at your TikTok account. Focus on making it more appealing 🤗 \n\nKeep an eye @adskity\n\n✅<b>Your Adskit ID:</b> <code>{unique_id}</code>",
@@ -573,7 +582,7 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
                            f"I just sent him the instructions in about 10 seconds",
                            )
     await query.answer("✅Request submitted. Check the Bot to complete the AD placement process😀")
-
+    # Notify the profile owner about the ad request
     # Send instructions to the requester
     await asyncio.sleep(3)
 
@@ -593,6 +602,7 @@ async def send_photo_from_url(chat_id: int, photo_url: str, caption: str):
     await bot.send_photo(chat_id, photo=photo_url, caption=caption)
 
 # New handler for photos with #Adcontent in the caption
+
 @dp.message(lambda message: message.photo and "#Adcontent" in message.caption)
 async def handle_ad_photo(message: types.Message):
     requester_id = message.from_user.id
@@ -626,28 +636,47 @@ async def handle_ad_photo(message: types.Message):
 
 
     # Forward the photo to the admin along with the caption
-    await bot.send_photo(
+    ad_msg = await bot.send_photo(
         ADMIN_CHAT_ID,
         photo=message.photo[-1].file_id,  # The highest resolution photo
         caption=f"Ad Content from from Advertiser @{message.from_user.username}:\n\n{ad_content}\n\n<b>Order ID:</b> <code>{order_id}</code>",
         reply_markup=builder.as_markup(),
         parse_mode=ParseMode.HTML)
+    # Store the ad_msg details
+    ad_request_messages[requester_id] = {'chat_id': ADMIN_CHAT_ID, 'message_id': ad_msg.message_id}
 
-    await message.reply(f"Your Ad has been submitted.\n\n<b>Your order ID is:</b> <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours.", parse_mode=ParseMode.HTML)
-    await asyncio.sleep(18)
+
+    # Advertiser must "Pay" button
+    builder = InlineKeyboardBuilder()
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='💰Make Payment💰', callback_data=f"make_the_payment_{requester_id}")]
+    ])
+    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+    await message.reply(f"Your Ad has been submitted.\n\n<b>Your order ID is:</b> <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours."
+                        , parse_mode=ParseMode.HTML,
+                        reply_markup=builder.as_markup())
+
+@dp.callback_query(lambda query: query.data.startswith('make_the_payment_'))
+async def handle_accept_ad_callback(query: types.CallbackQuery):
+    parts = query.data.split('_')
+    requester_id = int(parts[3])
     # Prepare the "Send " button
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='How to Send Proof?', callback_data=f"how_to_prove_{requester_id}")]
+        [InlineKeyboardButton(text='How to Send Proof🤔?', callback_data=f"how_to_prove_{requester_id}")]
     ])
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
-    await message.answer("⭐️Your Advert has been confirmed!\n───────────────────────\n\n"
-                    "Make a payment that the TikToker set on <a href='t.me/adskity'>TikTok spaces</a>Channel.\n\n"
-                    "Payment Methods:\n───────────────────────\n\n"
+    await query.answer('👩‍🦱Am Christine here to help!')
+    await asyncio.sleep(3)
+    await query.message.reply("⭐️Your was Ad Confirmed!\n───────────────────────\n\n"
+                    "Make a payment that the TikToker set on <a href='t.me/adskity'>TikTok spaces</a> Channel.\n\n"
+                    "<b>Payment Methods:</b>\n───────────────────────\n\n"
                     "<b>💰Binance ID:</b> <code>772986361</code>\n\n"
+                    "<b>💰Payeer ID:</b> <code>P1114650474</code>\n\n"
                     f"⚡<b>Momo Payments:</b> <a href='t.me/AdskitBot/Payment'>Click2Pay</a>\n\n"
                     "✅Other Fiat Currencies coming soon..\n\n"
-                    "Immediately Report to us at adskity@gmail.com if you find issues with the ADs you paid for.", disable_web_page_preview=True, reply_markup=builder.as_markup())
+                    "Immediately Report to us at adskity@gmail.com if you find issues with the ADs you paid for or anything else.", disable_web_page_preview=True, reply_markup=builder.as_markup())
 
 @dp.callback_query(lambda query: query.data.startswith('how_to_prove_'))
 async def handle_accept_ad_callback(query: types.CallbackQuery):
@@ -719,10 +748,13 @@ async def handle_ad_content(message: types.Message):
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
     # Notify the admin with the ad content
-    await bot.send_message(ADMIN_CHAT_ID,
+    ad_msg = await bot.send_message(ADMIN_CHAT_ID,
                            f"Ad content from Advertiser @{message.from_user.username}:\n\n{ad_content}\n\n\n\n<b>Order ID:</b> <code>{order_id}</code>",
                            parse_mode=ParseMode.HTML,
                            reply_markup=builder.as_markup())
+    # Store the ad_msg details
+    ad_request_messages[requester_id] = {'chat_id': ADMIN_CHAT_ID, 'message_id': ad_msg.message_id}
+
     await message.reply(f"Your Ad has been submitted. \n\nYour order ID is: <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you.", parse_mode=ParseMode.HTML)
     await asyncio.sleep(18)
     # Prepare the "Send " button
@@ -799,6 +831,14 @@ async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
 
         # Acknowledge the user's action
         await query.answer("Ad content sent to the TikTok profile owner.")
+
+        # Edit the original message to remove the button
+        ad_msg_details = ad_request_messages.get(requester_id)
+        if ad_msg_details:
+            chat_id = ad_msg_details['chat_id']
+            message_id = ad_msg_details['message_id']
+            await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=None)
+
     except Exception as e:
         print(f"Error sending photo: {e}")
 
@@ -838,6 +878,12 @@ async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
 
     # Acknowledge the admin's action
     await query.answer("Ad content sent to the TikTok profile owner.")
+    # Edit the original message to remove the button
+    ad_msg_details = ad_request_messages.get(requester_id)
+    if ad_msg_details:
+        chat_id = ad_msg_details['chat_id']
+        message_id = ad_msg_details['message_id']
+        await bot.edit_message_reply_markup(chat_id=chat_id, message_id=message_id, reply_markup=None)
 
 
 @dp.callback_query(lambda query: query.data.startswith('accept_ad_'))
