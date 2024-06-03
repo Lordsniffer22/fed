@@ -27,13 +27,13 @@ import sqlite3
 load_dotenv()
 
 # Telegram bot token (TEST MODE)
-#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
-ADMIN_IDS = [6448112643, 5863112798]
+ADMIN_IDS = [6448112643, 1383981132]
 
 # Dispatcher initialization
 dp = Dispatcher()
