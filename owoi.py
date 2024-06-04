@@ -717,7 +717,27 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     # Acknowledge the user's action
     await query.answer("Ad request accepted✅.")
 
+async def handle_dbase(message: types.Message):
+    user_id = message.from_user.id
+    print(user_id)
+    caption = 'Bot Brain Backed up!'
 
+    if user_id == int(ADMIN_CHAT_ID):
+        db_file_path = 'bot_data.db'
+        if os.path.exists(db_file_path):
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendDocument"
+            with open(db_file_path, "rb") as file:
+              files = {"document": file}
+              params = {"chat_id": user_id, "caption": caption}#
+              response = requests.post(url, files=files, data=params)
+
+            if response.status_code == 200:
+                print("File sent successfully!")
+            else:
+                print(f"Failed to send file. Error: {response.text}")
+
+    else:
+        await message.reply('Fuck you! Only Admins do that🤓')
 
 @dp.message(lambda message: message.photo and "#paid" in message.caption)
 async def handle_ad_photo(message: types.Message):
@@ -972,6 +992,9 @@ async def msg(message: types.Message):
     # Cancellation command handler
     elif cmd == '/cancel':
         await handle_cancel(message)
+
+    elif cmd == '/dbase':
+        await handle_dbase(message)
 async def main() -> None:
     bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     await dp.start_polling(bot)
