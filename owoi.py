@@ -27,17 +27,21 @@ import sqlite3
 load_dotenv()
 
 # Telegram bot token (TEST MODE)
-TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
 ADMIN_IDS = [6448112643, 1383981132]
 
+CHANNEL_ID = '-1002061815083'  # You can use channel username or chat ID
+CHANNEL_TAG = 'adskity'
+
 # Dispatcher initialization
 dp = Dispatcher()
 bot = Bot(token=TELEGRAM_BOT_TOKEN)
+
 
 # Initialize the SQLite database
 conn = sqlite3.connect('bot_data.db')
@@ -212,8 +216,19 @@ async def send_welcome(message: types.Message):
         caption = "Reach millions of potential customers on TikTok through us! \n\nWe connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\nType '/help' to learn more on how to get started!"
         photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/start.jpg'  # Replace with your photo URL
         await send_photo_from_url(user_id, photo_url, caption=caption)
+async def check_subscription(user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
+        return member.status in ['member', 'administrator', 'creator']
+    except Exception as e:
+        print(f"Error checking subscription status: {e}")
+        return False
 async def send_help(message: types.Message):
-    await message.reply("<b>This Bot now manages both TikTok content creators and Advertisers.</b>\n═══════════════════════════\n\n"
+    user_id = message.from_user.id
+
+    is_subscribed = await check_subscription(user_id)
+    if is_subscribed:
+        await message.reply("<b>This Bot now manages both TikTok content creators and Advertisers.</b>\n═══════════════════════════\n\n"
                         "<b>TikTokers</b>\n─────────────────\n\n"
                         "✨- To sign up, send /register to this chat and follow the prompts.\n\n"  
                         "✨- To submit your video where you have included the Advert, send /done to this chat and follow the prompts\n\n"                        
@@ -224,6 +239,17 @@ async def send_help(message: types.Message):
                         "<b>👉Confirm this:</b>\n─────────────────\nThe Adskit ID displayed on each Ad Space in the channel is also there on the Tiktoker's account if you visit his/her tiktok account.\n\n"
                         "<b><i>⚠️Note: Adskit (Tiktok spaces) Is not owned by ByteDance Ltd (TikTok).</i></b>\n\n",
                         parse_mode=ParseMode.HTML)
+    else:
+        builder = InlineKeyboardBuilder()
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='Join Channel', url=f"https://t.me/{CHANNEL_TAG}")]
+        ])  # Some markup
+        builder.attach(InlineKeyboardBuilder.from_markup(markup))
+        await message.reply(
+            "You must first be a Member in TikTok Spaces (Adskit Channel). Please join the channel and try again.",
+            reply_markup=builder.as_markup())
+
+
 async def start_verification(message: types.Message):
     user_id = message.from_user.id
 
