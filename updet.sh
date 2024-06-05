@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #fetch_files
-wget -O https://raw.githubusercontent.com/Lordsniffer22/fed/main/owoi.py
+wget -O owoi.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/owoi.py
 
 #del_files_from_docker container
 docker exec -it adskit rm owoi.py
