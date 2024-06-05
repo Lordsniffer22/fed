@@ -516,7 +516,8 @@ async def handle_decline_link_callback(query: types.CallbackQuery):
     await bot.send_message(user_id, "Your Account has been not been Approved.🙊 \n\n"
                                     "-Here are some stuff you need to fix.\n"
                                     "─────────────────────────────\n"
-                                    "-Make sure you have at least 5k and above Followers.\n"
+                                    "-Make sure you have at least 1k and above Followers.\n"
+                                    "-Make sure you have entered your Price correctly.\n"
                                     "-You need to put your Adskit ID on your TikTok Bio and it must stay visible.\n"
                                     "-The names you submitted during registration should be the ones Reflected on your TikTok account."
                                     "\n\nYou Can /REGISTER again after making sure you resolved the issue.")
