@@ -10,5 +10,5 @@ docker exec -it adskit rm owoi.py
 docker cp owoi.py adskit:/app
 
 #finally remove the py script.
-
+sleep 3
 rm -rf owoi.py
