@@ -12,3 +12,6 @@ docker cp owoi.py adskit:/app
 #finally remove the py script.
 sleep 3
 rm -rf owoi.py
+echo "REBOOTING SERVER"
+sleep 5
+reboot
