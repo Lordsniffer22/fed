@@ -58,7 +58,6 @@ COPY . .
 
 # Set the environment variables (if any)
 ENV TOKEN=7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4
-ENV RAVE_SECRET_KEY=FLWSECK-c0554fe039b959856c60903e8d14aedb-18fe9ef3dacvt-X
 
 # Command to run the application
 CMD ["python3", "owoi.py"]
