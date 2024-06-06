@@ -3,3 +3,4 @@ python_dotenv
 telepot
 aiogram==3.5
 pytube
+rave_python
