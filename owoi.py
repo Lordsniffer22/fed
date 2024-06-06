@@ -22,14 +22,16 @@ from aiogram.types import InputFile
 from aiogram.methods import SendChatAction
 import sqlite3
 
-
-# Load environment variables from .env file
+from rave_python import Rave,  RaveExceptions, Misc
+from dotenv import load_dotenv
 load_dotenv()
+Secret = os.getenv('RAVE_SECRET_KEY')
+rave = Rave("FLWPUBK-1ab67f97ba59d47b65d67001eb794a05-X", Secret,  production=True)
 
 # Telegram bot token (TEST MODE)
-#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
@@ -130,6 +132,13 @@ ad_request_messages = {}
 payments = {}
 verified_users = {}
 verif_reqs = {}
+temp_user_id = {}
+
+user_states = {}
+
+# Define states
+STATE_AWAITING_PHONE_NUMBER = 'awaiting_phone_number'
+STATE_NONE = 'none'
 
 def save_data(table, key, data):
     data_to_save = data.copy()  # Create a copy of the data dictionary
@@ -440,7 +449,7 @@ async def handle_views(message: types.Message):
     user_data[user_id]['location'] = message.text.strip()
     user_data[user_id]['verification_step'] = 'awaiting_price'
     save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
-    await message.reply("How much do you charge for an Advert?.\n\n⊚ Include Your Currency ( eg $5 or UGX 20,000, etc)\n\n╰┈➤A lower price brings more advertisers to you. Set wisely!")
+    await message.reply("How much do you charge for an Advert?.\n\n⊚ Include Your Currency (eg UGX 10,000, $3 etc)\n\n╰┈➤A lower price brings more advertisers to you. Set wisely!")
 
 
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_price')
@@ -584,7 +593,8 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
     # Extract user_id from the callback data
     user_id = int(query.data.split('_')[2])
     requester_id = query.from_user.id
-
+    # Store the user_id in the temporary dictionary
+    temp_user_id[query.from_user.id] = user_id
 
     # Check if the user has already requested to place an ad for this post
     if requester_id in ad_requests and user_id in ad_requests[requester_id]:
@@ -596,12 +606,7 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
         ad_requests[requester_id] = set()
     ad_requests[requester_id].add(user_id)
 
-    ## Prepare the "Tell Him" button
-    #builder = InlineKeyboardBuilder()
-    #markup = InlineKeyboardMarkup(inline_keyboard=[
-     #   [InlineKeyboardButton(text='Send Procedures', callback_data=f"tell_him_{requester_id}")]
-    #])
-    #builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
 
     # Notify the admin about the ad request
     await bot.send_message(ADMIN_CHAT_ID,
@@ -628,6 +633,11 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
 async def send_photo_from_url(chat_id: int, photo_url: str, caption: str):
     await bot.send_photo(chat_id, photo=photo_url, caption=caption)
 
+
+
+
+
+
 # New handler for photos with #Adcontent in the caption
 
 @dp.message(lambda message: message.photo and "#Adcontent" in message.caption)
@@ -641,9 +651,9 @@ async def handle_ad_photo(message: types.Message):
     save_data('advertiza', requester_id, advertiza[requester_id])
 
 
-    if requester_id not in ad_requests:
-        await message.reply("You have not requested to place an ad yet. Please click the 'Place AD' button in the channel.")
-        return
+  #  if requester_id not in ad_requests:
+  #      await message.reply("You have not requested to place an ad yet. Please click the 'Place AD' button in the channel.")
+    #    return
 
     # Extract the ad content from the caption
     ad_content = message.caption.replace("#Adcontent", "").strip()
@@ -684,6 +694,60 @@ async def handle_ad_photo(message: types.Message):
                         , parse_mode=ParseMode.HTML,
                         reply_markup=builder.as_markup())
 
+
+
+@dp.message(lambda message: message.text and message.text.startswith('#Adcontent'))
+async def handle_ad_content(message: types.Message):
+    requester_id = message.from_user.id
+
+    # Generate and store the unique ID in advertiza
+    advertiza[requester_id] = {
+        'order_id': generate_unique_id()
+    }
+    order_id = advertiza[requester_id]['order_id']
+    save_data('advertiza', requester_id, advertiza[requester_id])  # Save advertiza to database
+
+    ad_content = message.text[len('#Adcontent'):].strip()
+
+    if requester_id not in ad_requests:
+        await message.reply(
+            "You have not requested to place an ad yet. Please click the 'Place AD' button in the channel.")
+        return
+
+    # Store the ad content in ad_contents
+    ad_contents[requester_id] = {'ad_content': ad_content}
+    save_data('ad_contents', requester_id, ad_contents[requester_id])  # Save ad_contents to database
+    #save_data('ad_requests', requester_id, ad_contents[requester_id])  # Save ad_contents to database
+
+
+    # Prepare the "Send to Tiktoker" button
+    builder = InlineKeyboardBuilder()
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Send to Tiktoker', callback_data=f"send_to_tiktoker_{requester_id}")]
+    ])
+    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+    # Notify the admin with the ad content
+    ad_msg = await bot.send_message(ADMIN_CHAT_ID,
+                           f"Ad content from Advertiser @{message.from_user.username}:\n\n{ad_content}\n\n\n\n<b>Order ID:</b> <code>{order_id}</code>",
+                           parse_mode=ParseMode.HTML,
+                           reply_markup=builder.as_markup())
+    # Store the ad_msg details
+    ad_request_messages[requester_id] = {'chat_id': ADMIN_CHAT_ID, 'message_id': ad_msg.message_id}
+
+    # Advertiser must "Pay" button
+    builder = InlineKeyboardBuilder()
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='💰Make Payment💰', callback_data=f"make_the_payment_{requester_id}")]
+    ])
+    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+    await message.reply(
+        f"Your Ad has been submitted.\n\n<b>Your order ID is:</b> <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours."
+        , parse_mode=ParseMode.HTML,
+        reply_markup=builder.as_markup())
+
+
 @dp.callback_query(lambda query: query.data.startswith('make_the_payment_'))
 async def handle_accept_ad_callback(query: types.CallbackQuery):
     parts = query.data.split('_')
@@ -691,19 +755,119 @@ async def handle_accept_ad_callback(query: types.CallbackQuery):
     # Prepare the "Send " button
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='🟨 MTN', callback_data=f"pay_with_momo_{requester_id}"),
+         InlineKeyboardButton(text='🟥 AIRTEL', callback_data=f"pay_with_airtel_{requester_id}"),
+         InlineKeyboardButton(text='🅱️ Binance', callback_data=f"pay_with_binance_{requester_id}")],
         [InlineKeyboardButton(text='How to Send Proof🤔?', callback_data=f"how_to_prove_{requester_id}")]
     ])
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
     await query.answer('👩‍🦱Am Christine here to help!')
     await asyncio.sleep(3)
-    await query.message.reply("⭐️Your was Ad Confirmed!\n───────────────────────\n\n"
-                    "Make a payment that the TikToker set on <a href='t.me/adskity'>TikTok spaces</a> Channel.\n\n"
-                    "<b>Payment Methods:</b>\n───────────────────────\n\n"
-                    "<b>💰Binance ID:</b> <code>772986361</code>\n\n"
-                    "<b>💰Payeer ID:</b> <code>P1114650474</code>\n\n"
-                    f"⚡<b>Momo Payments:</b> <a href='t.me/AdskitBot/Payment'>Click2Pay</a>\n\n"
-                    "✅Other Fiat Currencies coming soon..\n\n"
-                    "Immediately Report to us at adskity@gmail.com if you find issues with the ADs you paid for or anything else.", disable_web_page_preview=True, reply_markup=builder.as_markup())
+    await query.message.answer('⭐️Your Ad has been Confirmed!')
+    await asyncio.sleep(3)
+    await query.message.reply("<b>Choose a Payment Method</b>\n───────────────────────\n\n"
+                    "<i>Immediately Report to us at adskit1@gmail.com if you find issues with the ADs you paid for or anything else.</i>",
+                              parse_mode=ParseMode.HTML, disable_web_page_preview=True, reply_markup=builder.as_markup())
+
+
+@dp.callback_query(lambda query: query.data.startswith('pay_with_airtel_'))
+async def handle_momo_payment_callback(query: types.CallbackQuery):
+    requester_id = int(query.data.split('_')[3])
+
+    await query.answer('Please Enter Your Phone number (no country code)')
+    # Set state to awaiting phone number
+    user_states[requester_id] = STATE_AWAITING_PHONE_NUMBER
+    await bot.send_message(requester_id, 'Please enter your phone number in the format:\n\n <b>07XXXXXX</b> or <b>02XXXXXX</b> or <b>03XXXXXX</b>:',
+                           parse_mode=ParseMode.HTML)
+
+@dp.callback_query(lambda query: query.data.startswith('pay_with_momo_'))
+async def handle_momo_payment_callback(query: types.CallbackQuery):
+    requester_id = int(query.data.split('_')[3])
+
+    await query.answer('Please Enter Your Phone number (no country code)')
+    # Set state to awaiting phone number
+    user_states[requester_id] = STATE_AWAITING_PHONE_NUMBER
+    await bot.send_message(requester_id, 'Please enter your phone number in the format:\n\n <b>07XXXXXX</b> or <b>02XXXXXX</b> or <b>03XXXXXX</b>:',
+                           parse_mode=ParseMode.HTML)
+
+
+
+@dp.message(lambda message: user_states.get(message.chat.id) == STATE_AWAITING_PHONE_NUMBER)
+async def handle_phone_number(message: types.Message):
+    phone_number = message.text
+    user_id = message.chat.id
+    payers_id = message.chat.id
+
+    if (phone_number.startswith('07') or phone_number.startswith('02') or phone_number.startswith('03')) and len(phone_number) == 10:
+        user_states[user_id] = STATE_NONE  # Reset state
+        suga = await message.reply('Obtaining your OTP...')
+
+
+        # Retrieve the user_id from the temporary dictionary
+        user_id = temp_user_id.pop(payers_id, None)
+
+        if user_id is not None:
+            # Retrieve the price information using the user_id
+            if user_id in user_data:
+                price_info = user_data[user_id].get('price')
+                if price_info:
+                    currency, amount = price_info.split()  # Split currency and price
+                else:
+                    await bot.send_message(payers_id, 'Price not found. Please contact support.')
+                    return
+            else:
+                await bot.send_message(payers_id, 'User data not found. Please contact support.')
+                return
+
+        # Now initiate the Flutterwave charge
+        payload = {
+            "amount": amount,
+            "phonenumber": phone_number,
+            "email": "campaigns@adskit.com",
+            "redirect_url": "https://rave-webhook.herokuapp.com/receivepayment",
+            "IP": ""
+        }
+
+        try:
+            res = rave.UGMobile.charge(payload)
+            pay_link = res['link']
+            # Prepare the "PAYNOW" button
+            builder = InlineKeyboardBuilder()
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text='Pay Now', url=pay_link)]
+            ])
+            builder.attach(InlineKeyboardBuilder.from_markup(markup))
+            await bot.send_message(payers_id, f"Use the Flutterwave OTP You just recieved.\n"
+                                            f" Click the <b><i>Pay Now</i></b> Button below.", parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
+            await asyncio.sleep(2)
+            await suga.delete()
+            phone_number = None
+        except RaveExceptions.TransactionChargeError as e:
+            await bot.send_message(payers_id, f"Transaction Charge Error: {e.err}")
+            phone_number = None
+        except RaveExceptions.TransactionVerificationError as e:
+            await bot.send_message(payers_id, f"Transaction Verification Error: {e.err['errMsg']}")
+            phone_number = None
+    else:
+        await bot.send_message(payers_id,
+                               'Invalid phone number format. Please enter the phone number in the format 07XXXXXX:')
+        phone_number = None
+
+
+
+
+@dp.callback_query(lambda query: query.data.startswith('pay_with_binance_'))
+async def handle_accept_ad_callback(query: types.CallbackQuery):
+    parts = query.data.split('_')
+    requester_id = int(parts[3])
+
+    await asyncio.sleep(3)
+
+    await query.message.answer('<b>Pay To:</b>\n'
+                               '💰Binance ID: <code>772986361</code>\n\n'
+                               'If however You wanted to pay using Payeer, make the payment to:\n'
+                               '💰Payeer ID: <code>P1114650474</code>')
+
 
 @dp.callback_query(lambda query: query.data.startswith('how_to_prove_'))
 async def handle_accept_ad_callback(query: types.CallbackQuery):
@@ -763,60 +927,6 @@ async def handle_ad_photo(message: types.Message):
     await message.reply(f"Recieved your proof of payment. \n\nThe escrow department is reviewing it. We shall inform the tiktoker to publish the Advert as soon as the review is done.", parse_mode=ParseMode.HTML)
 
 
-@dp.message(lambda message: message.text and message.text.startswith('#Adcontent'))
-async def handle_ad_content(message: types.Message):
-    requester_id = message.from_user.id
-
-    # Generate and store the unique ID in advertiza
-    advertiza[requester_id] = {
-        'order_id': generate_unique_id()
-    }
-    order_id = advertiza[requester_id]['order_id']
-    save_data('advertiza', requester_id, advertiza[requester_id])  # Save advertiza to database
-
-    ad_content = message.text[len('#Adcontent'):].strip()
-
-    if requester_id not in ad_requests:
-        await message.reply(
-            "You have not requested to place an ad yet. Please click the 'Place AD' button in the channel.")
-        return
-
-    # Store the ad content in ad_contents
-    ad_contents[requester_id] = {'ad_content': ad_content}
-    save_data('ad_contents', requester_id, ad_contents[requester_id])  # Save ad_contents to database
-    #save_data('ad_requests', requester_id, ad_contents[requester_id])  # Save ad_contents to database
-
-
-    # Prepare the "Send to Tiktoker" button
-    builder = InlineKeyboardBuilder()
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='Send to Tiktoker', callback_data=f"send_to_tiktoker_{requester_id}")]
-    ])
-    builder.attach(InlineKeyboardBuilder.from_markup(markup))
-
-    # Notify the admin with the ad content
-    ad_msg = await bot.send_message(ADMIN_CHAT_ID,
-                           f"Ad content from Advertiser @{message.from_user.username}:\n\n{ad_content}\n\n\n\n<b>Order ID:</b> <code>{order_id}</code>",
-                           parse_mode=ParseMode.HTML,
-                           reply_markup=builder.as_markup())
-    # Store the ad_msg details
-    ad_request_messages[requester_id] = {'chat_id': ADMIN_CHAT_ID, 'message_id': ad_msg.message_id}
-
-    await message.reply(f"Your Ad has been submitted. \n\nYour order ID is: <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you.", parse_mode=ParseMode.HTML)
-    await asyncio.sleep(18)
-    # Prepare the "Send " button
-    builder = InlineKeyboardBuilder()
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='How to Send Proof?', callback_data=f"how_to_prove_{requester_id}")]
-    ])
-    builder.attach(InlineKeyboardBuilder.from_markup(markup))
-    await message.answer("⭐️Your Advert has been confirmed!\n───────────────────────\n\n"
-                    "Make a payment that the TikToker set on <a href='t.me/adskity'>TikTok spaces</a>Channel.\n\n"
-                    "Payment Methods:\n───────────────────────\n\n"
-                    "<b>💰Binance ID:</b> <code>772986361</code>\n\n"
-                    f"⚡<b>Momo Payments:</b> <a href='t.me/AdskitBot/Payment'>Click2Pay</a>\n\n"
-                    "✅Other Fiat Currencies coming soon..\n\n"
-                    "Immediately Report to us at adskity@gmail.com if you find issues with the ADs you paid for.", disable_web_page_preview=True, reply_markup=builder.as_markup())
 
 @dp.callback_query(lambda query: query.data.startswith('sendp_to_tiktoker_'))
 async def handle_send_to_tiktoker_callback(query: types.CallbackQuery):
