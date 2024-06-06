@@ -38,6 +38,10 @@ fi
 # Download the application files
 wget -O owoi.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/owoi.py &>/dev/null
 wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt &>/dev/null
+touch .env
+cat <<EOF > .env
+RAVE_SECRET_KEY= FLWSECK-c0554fe039b959856c60903e8d14aedb-18fe9ef3dacvt-X
+EOF
 
 # Create a Dockerfile
 cat <<EOF > Dockerfile
