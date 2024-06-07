@@ -29,9 +29,9 @@ Secret = os.getenv('RAVE_SECRET_KEY')
 rave = Rave("FLWPUBK-1ab67f97ba59d47b65d67001eb794a05-X", Secret,  production=True)
 
 # Telegram bot token (TEST MODE)
-TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
