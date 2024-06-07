@@ -29,9 +29,9 @@ Secret = os.getenv('RAVE_SECRET_KEY')
 rave = Rave("FLWPUBK-1ab67f97ba59d47b65d67001eb794a05-X", Secret,  production=True)
 
 # Telegram bot token (TEST MODE)
-#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
@@ -222,7 +222,9 @@ async def send_welcome(message: types.Message):
                             f"\n\nWe are glad you are here with us again😍\n"
                             f"╰┈➤Press: /help ")
     else:
-        caption = "Reach millions of potential customers on TikTok through us! \n\nWe connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\nType '/help' to learn more on how to get started!"
+        caption = ("Reach millions of potential customers on TikTok through us! \n\n"
+                   "We connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\n"
+                   "Type '/help' to get started!")
         photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/start.jpg'  # Replace with your photo URL
         await send_photo_from_url(user_id, photo_url, caption=caption)
 async def check_subscription(user_id: int) -> bool:
@@ -281,6 +283,11 @@ async def check_if_tiktok(message: types.Message):
     # Regular expression pattern to match TikTok URLs
     tiktok_pattern = r'(https?://)?(www\.)?(vm\.tiktok\.com/|tiktok\.com/@[\w.-]+/video/)[\w-]+'
     return re.search(tiktok_pattern, message.text) is not None
+
+def is_valid_email(email):
+    # Regular expression pattern for a valid email address
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return re.match(pattern, email.strip()) is not None
 
 async def handle_cancel(message: types.Message):
     user_id = message.from_user.id
@@ -420,13 +427,31 @@ async def handle_profile_name(message: types.Message):
     if user_id not in user_data:
         user_data[user_id] = {}
 
-    user_data[user_id]['profile_name'] = message.text.strip()
-    user_data[user_id]['verification_step'] = 'awaiting_followers'
+    tiktok_names = message.text.strip()
+
+    user_data[user_id]['profile_name'] = tiktok_names
+    user_data[user_id]['verification_step'] = 'awaiting_email'
     save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
 
-    await message.reply("How many followers do you have right now? \n\n-🛑 Wrong answers might lead to your account verification being neglected")
 
+    await message.reply(f"👋Hey <b>{tiktok_names}</b>, How do we contact you incase of any issues?🤷‍♂️")
 
+@dp.message(
+    lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_email')
+async def handle_currency(message: types.Message):
+    if await cancel_user_reg(message):
+        return
+    user_id = message.from_user.id
+
+    emailx = message.text.strip()
+    if is_valid_email(emailx):
+        # Save the email in user_data
+        user_data[user_id]['email_address'] = emailx
+        user_data[user_id]['verification_step'] = 'awaiting_followers'
+        await message.answer(f"How many followers do you have right now? \n\n-🛑 Wrong answers might lead to your account verification being neglected")
+    else:
+        await message.answer(f"A valid Email address is required! Let's try again one more time.\n\n"
+                             f"Otherwise, you can press /cancel to quit the registration process.")
 
 @dp.message(
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_followers')
@@ -596,7 +621,7 @@ async def handle_verify_link_callback(query: types.CallbackQuery):
                            parse_mode=ParseMode.HTML,  # Set parse_mode to HTML
                            reply_markup=builder2.as_markup())
 
-    await bot.send_message(ADMIN_CHAT_ID, f"[■■■■ Verified] 100% ✅\nUser: <b>{user_data[user_id]['profile_name']}</b>",
+    await bot.send_message(ADMIN_CHAT_ID, f"[■■■■ Verified] 100% ✅\n───────────────────────\n\nUser: <b>{user_data[user_id]['profile_name']}\nEmail: {user_data[user_id]['email_address']}</b>",
                            parse_mode=ParseMode.HTML)
 
 
