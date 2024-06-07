@@ -882,12 +882,12 @@ async def handle_phone_number(message: types.Message):
             ])
             builder.attach(InlineKeyboardBuilder.from_markup(markup))
             message = await bot.send_message(payers_id, f"Use the <u>Flutterwave OTP</u> You just recieved.\n\n"
-                                              f"<i><b>OTP</b> expires in 10 minutes</i>"
+                                              f"<i><b>OTP</b> expires in 5 minutes</i>"
                                             f" Click the <b><i>Pay Now</i></b> Button below.", parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
             await asyncio.sleep(2)
             await suga.delete()
             # Delay for 10 minutes
-            await asyncio.sleep(600)  # 10 minutes = 600 seconds
+            await asyncio.sleep(300)  # 10 minutes = 600 seconds
 
             # Edit the message after 10 minutes
             await bot.edit_message_text(chat_id=payers_id, message_id=message.message_id,
