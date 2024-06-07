@@ -28,8 +28,10 @@ load_dotenv()
 Secret = os.getenv('RAVE_SECRET_KEY')
 rave = Rave("FLWPUBK-1ab67f97ba59d47b65d67001eb794a05-X", Secret,  production=True)
 
+# Telegram bot token (TEST MODE)
+TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
@@ -870,6 +872,7 @@ async def handle_phone_number(message: types.Message):
         }
 
         try:
+
             res = rave.UGMobile.charge(payload)
             pay_link = res['link']
             # Prepare the "PAYNOW" button
@@ -878,10 +881,18 @@ async def handle_phone_number(message: types.Message):
                 [InlineKeyboardButton(text='Pay Now', url=pay_link)]
             ])
             builder.attach(InlineKeyboardBuilder.from_markup(markup))
-            await bot.send_message(payers_id, f"Use the Flutterwave OTP You just recieved.\n"
+            message = await bot.send_message(payers_id, f"Use the <u>Flutterwave OTP</u> You just recieved.\n\n"
+                                              f"<i><b>OTP</b> expires in 10 minutes</i>"
                                             f" Click the <b><i>Pay Now</i></b> Button below.", parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
             await asyncio.sleep(2)
             await suga.delete()
+            # Delay for 10 minutes
+            await asyncio.sleep(600)  # 10 minutes = 600 seconds
+
+            # Edit the message after 10 minutes
+            await bot.edit_message_text(chat_id=payers_id, message_id=message.message_id,
+                                        text="Payment Window has closed. You will place the advert on that tiktok account again after 1 hour")
+
             phone_number = None
         except RaveExceptions.TransactionChargeError as e:
             await bot.send_message(payers_id, f"Transaction Charge Error: {e.err}")
