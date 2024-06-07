@@ -29,9 +29,9 @@ Secret = os.getenv('RAVE_SECRET_KEY')
 rave = Rave("FLWPUBK-1ab67f97ba59d47b65d67001eb794a05-X", Secret,  production=True)
 
 # Telegram bot token (TEST MODE)
-#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
@@ -315,7 +315,7 @@ async def process_video_link(message: types.Message):
         user_data[message.from_user.id]['video_link'] = message.text
         user_data[message.from_user.id]['step'] = 'payment_address'
         await message.reply("Please enter your payment address\n\n"
-                            "It can be a phone number, Binance/Payeer ID or Chipper Cash tag")
+                            "It can be a phone number [MTN or AIRTEL, MPESA], Binance or Payeer ID ")
     else:
         await message.reply("Please provide a valid TikTok link. \n\nSend /cancel to quit")
 
@@ -816,7 +816,7 @@ async def handle_phone_number(message: types.Message):
                     await bot.send_message(payers_id, 'Price not found. Please contact support.')
                     return
             else:
-                await bot.send_message(payers_id, 'User data not found. Please contact support.')
+                await bot.send_message(payers_id, 'User data not found. It seems you forgot to click on "Place Ad" button in @adskity.')
                 return
 
         # Now initiate the Flutterwave charge
