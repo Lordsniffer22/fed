@@ -439,7 +439,6 @@ async def handle_followers(message: types.Message):
     save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
     await message.reply("What country do your followers come from?\n\n╰┈➤Some Advertisers target specific Countries.")
 
-
 @dp.message(
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_location')
 async def handle_views(message: types.Message):
@@ -447,10 +446,23 @@ async def handle_views(message: types.Message):
     if await cancel_user_reg(message):
         return
     user_data[user_id]['location'] = message.text.strip()
-    user_data[user_id]['verification_step'] = 'awaiting_price'
+    user_data[user_id]['verification_step'] = 'awaiting_currency'
     save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
-    await message.reply("How much do you charge for an Advert?.\n\n⊚ Include Your Currency (eg UGX 10,000, $3 etc)\n\n╰┈➤A lower price brings more advertisers to you. Set wisely!")
+    await message.reply("In which <b>currency</b> do you want to Recieve your <u>payments</u>?", parse_mode=ParseMode.HTML)
 
+# Handler to get the currency
+@dp.message(
+    lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_currency')
+async def handle_currency(message: types.Message):
+    if await cancel_user_reg(message):
+        return
+    user_id = message.from_user.id
+    currency = message.text.strip()
+
+    # Save the currency in user_data
+    user_data[user_id]['currency'] = currency
+    user_data[user_id]['verification_step'] = 'awaiting_price'
+    await message.answer(f"Got it! Now, please enter the price in {currency}:")
 
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_price')
 async def handle_price(message: types.Message):
@@ -458,18 +470,18 @@ async def handle_price(message: types.Message):
         return
     user_id = message.from_user.id
     price_text = message.text.strip()
-
-    # Extract digits from the message
-    match = re.search(r'\d+', price_text)
-    if match:
-        original_price = float(match.group())
+    if price_text.isdigit():
+        original_price = float(price_text)
         new_price = calculate_price_with_markup(original_price)
-        currency = re.sub(r'\d+', '', price_text).strip()  # Extract the currency text
+        currency = user_data[user_id]['currency']  # Retrieve the saved currency
+
 
         user_data[user_id]['price'] = f"{currency} {new_price}"
         user_data[user_id]['verification_step'] = None
         unique_id = user_data[user_id]['unique_id']  # Retrieve the unique ID
         save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
+    else:
+        await message.answer("Invalid input. Please enter digits only for the price:")
 
     builder = InlineKeyboardBuilder()
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -596,10 +608,12 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
     # Store the user_id in the temporary dictionary
     temp_user_id[query.from_user.id] = user_id
 
+
     # Check if the user has already requested to place an ad for this post
     if requester_id in ad_requests and user_id in ad_requests[requester_id]:
-        await query.answer("You already requested to place an ad on this one.")
+        await query.answer("You already requested. Wait for 1 hour to place a new Ad on that")
         return
+
 
     # Register the ad request
     if requester_id not in ad_requests:
@@ -627,6 +641,10 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
                     )
 
     await bot.send_message(requester_id, instructions)
+
+    await asyncio.sleep(3600)
+    del ad_requests[requester_id]
+
 
 
 
