@@ -968,7 +968,7 @@ async def handle_dbase(message: types.Message):
                 print(f"Failed to send file. Error: {response.text}")
 
     else:
-        await message.reply('Fuck you! Only Admins do that🤓')
+        await message.reply('Fuck you! Only the Devleper can do that🤓')
 
 @dp.message(lambda message: message.photo and "#paid" in message.caption)
 async def handle_ad_photo(message: types.Message):
