@@ -12,6 +12,5 @@ docker cp bot_data.db adskit:/app
 #finally remove the py script.
 sleep 3
 rm -rf bot_data.db
-echo "REBOOTING SERVER"
-sleep 5
-reboot
+echo "RESTARTING ADSKIT CONTAINER"
+docker restart adskit
