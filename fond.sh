@@ -19,7 +19,7 @@ Description=Psiphond Service
 After=network.target
 
 [Service]
-ExecStart=/root/psiphon/psiphond run
+ExecStart=/root/psiphon/psiphond run -config /root/psiphon/psiphond.config
 Type=simple
 WorkingDirectory=/root/psiphon/
 Restart=always
