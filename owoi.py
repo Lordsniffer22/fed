@@ -13,13 +13,11 @@ import json
 import requests
 from aiogram import Bot, Dispatcher, types
 from aiogram.enums import ParseMode
-from dotenv import load_dotenv
 from aiogram.client.default import DefaultBotProperties
-from datetime import datetime, timedelta
+from datetime import datetime
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import InputFile
-from aiogram.methods import SendChatAction
+from aiogram.utils.chat_action import ChatActionSender
 import sqlite3
 
 from rave_python import Rave,  RaveExceptions, Misc
@@ -198,12 +196,14 @@ load_all_data()
 
 
 async def recieve_video(message: types.Message):
-    okay = await message.reply("😍Glad you've finished adding the Advert to your new Video\n\n")
-    await asyncio.sleep(4)
-    await okay.delete()
-    await asyncio.sleep(1)
-    await message.reply("Please enter the video link:")
-    user_data[message.from_user.id] = {'step': 'video_link'}
+    async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+        await asyncio.sleep(1)
+        okay = await message.reply("😍Glad you've finished adding the Advert to your new Video\n\n")
+        await asyncio.sleep(4)
+        await okay.delete()
+        await asyncio.sleep(1)
+        await message.reply("Please enter the video link:")
+        user_data[message.from_user.id] = {'step': 'video_link'}
 
 def calculate_price_with_markup(price):
     return price * 1.20  # Add 20% markup
@@ -238,8 +238,10 @@ async def send_help(message: types.Message):
     user_id = message.from_user.id
 
     is_subscribed = await check_subscription(user_id)
-    if is_subscribed:
-        await message.reply("<b>This Bot now manages both TikTok content creators and Advertisers.</b>\n═══════════════════════════\n\n"
+    async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+       if is_subscribed:
+           await asyncio.sleep(2)
+           await message.reply("<b>This Bot now manages both TikTok content creators and Advertisers.</b>\n═══════════════════════════\n\n"
                         "<b>TikTokers</b>\n─────────────────\n\n"
                         "✨- To sign up, send /register to this chat and follow the prompts.\n\n"  
                         "✨- To submit your video where you have included the Advert, send /done to this chat and follow the prompts\n\n"                        
@@ -250,15 +252,15 @@ async def send_help(message: types.Message):
                         "<b>👉Confirm this:</b>\n─────────────────\nThe Adskit ID displayed on each Ad Space in the channel is also there on the Tiktoker's account if you visit his/her tiktok account.\n\n"
                         "<b><i>⚠️Note: Adskit (Tiktok spaces) Is not owned by ByteDance Ltd (TikTok).</i></b>\n\n",
                         parse_mode=ParseMode.HTML)
-    else:
-        builder = InlineKeyboardBuilder()
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text='Join Channel', url=f"https://t.me/{CHANNEL_TAG}")]
-        ])  # Some markup
-        builder.attach(InlineKeyboardBuilder.from_markup(markup))
-        await message.reply(
-            "You must first be a Member in TikTok Spaces (Adskit Channel). Please join the channel and try again.",
-            reply_markup=builder.as_markup())
+       else:
+           builder = InlineKeyboardBuilder()
+           markup = InlineKeyboardMarkup(inline_keyboard=[
+               [InlineKeyboardButton(text='Join Channel', url=f"https://t.me/{CHANNEL_TAG}")]
+           ])  # Some markup
+           builder.attach(InlineKeyboardBuilder.from_markup(markup))
+           await message.reply(
+               "You must first be a Member in TikTok Spaces (Adskit Channel). Please join the channel and try again.",
+               reply_markup=builder.as_markup())
 
 
 async def start_verification(message: types.Message):
@@ -273,11 +275,13 @@ async def start_verification(message: types.Message):
         'verification_step': 'awaiting_link',
         'unique_id': generate_unique_id()  # Generate and store the unique ID
     }
-    okay = await message.reply('You are now signing up as a TikToker!')
-    await asyncio.sleep(3)
-    await okay.delete()
-    await asyncio.sleep(1)
-    await message.reply("🤝Let's begin.\n\nSend me a link to Your tiktok account or to any of your videos.🤷‍♂️")
+    async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+        await asyncio.sleep(2)
+        okay = await message.reply('You are now signing up as a TikToker!')
+        await asyncio.sleep(3)
+        await okay.delete()
+        await asyncio.sleep(1)
+        await message.reply("🤝Let's begin.\n\nSend me a link to Your tiktok account or to any of your videos.🤷‍♂️")
 
 async def check_if_tiktok(message: types.Message):
     # Regular expression pattern to match TikTok URLs
@@ -324,7 +328,7 @@ async def process_video_link(message: types.Message):
         await message.reply("Please enter your payment address\n\n"
                             "It can be a phone number [MTN or AIRTEL, MPESA], Binance or Payeer ID ")
     else:
-        await message.reply("Please provide a valid TikTok link. \n\nSend /cancel to quit")
+        await message.reply("Please provide a valid TikTok link. \n\nSend /cancel to exit link submission")
 
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('step') == 'payment_address')
 async def process_payment_address(message: types.Message):
@@ -362,31 +366,32 @@ async def process_adskit_id(message: types.Message):
 
     @dp.callback_query(lambda query: query.data == 'confirmed')
     async def handle_confirmation(query: types.CallbackQuery):
-        user_id = query.from_user.id
-        if user_id not in user_data:
-            await query.answer("No data found to submit.")
-            return
+        async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+           user_id = query.from_user.id
+           if user_id not in user_data:
+               await query.answer("No data found to submit.")
+               return
 
-        video_link = user_data[user_id]['video_link']
-        payment_address = user_data[user_id]['payment_address']
+           video_link = user_data[user_id]['video_link']
+           payment_address = user_data[user_id]['payment_address']
 
-        order_id = user_data[user_id]['order_id']
+           order_id = user_data[user_id]['order_id']
 
-        builder = InlineKeyboardBuilder()
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text='Payment in Progress', callback_data=f"payment_process_{user_id}")]
-        ])  # Some markup
-        builder.attach(InlineKeyboardBuilder.from_markup(markup))
-        compiled_message = (
-            f"TikTok Video from @{query.from_user.username}:"
-            f"\n─────────────────────────\n"
-            f"➤Video Link: {video_link}\n"
-            f"➤Payment Addr: {payment_address}\n"
-            f"➤Order ID: {order_id}"
-        )
+           builder = InlineKeyboardBuilder()
+           markup = InlineKeyboardMarkup(inline_keyboard=[
+               [InlineKeyboardButton(text='Payment in Progress', callback_data=f"payment_process_{user_id}")]
+           ])  # Some markup
+           builder.attach(InlineKeyboardBuilder.from_markup(markup))
+           compiled_message = (
+               f"TikTok Video from @{query.from_user.username}:"
+               f"\n─────────────────────────\n"
+               f"➤Video Link: {video_link}\n"
+               f"➤Payment Addr: {payment_address}\n"
+               f"➤Order ID: {order_id}"
+           )
 
-        await bot.send_message(ADMIN_CHAT_ID, compiled_message, reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML)
-        await query.message.answer("Your information has been submitted for moderation.\nExpect to recieve your funds in less than 24 hours.")
+           await bot.send_message(ADMIN_CHAT_ID, compiled_message, reply_markup=builder.as_markup(), parse_mode=ParseMode.HTML)
+           await query.message.answer("Your information has been submitted for moderation.\nExpect to recieve your funds in less than 24 hours.")
         # Clear user data
         user_data.pop(user_id, None)
         await asyncio.sleep(3)
@@ -416,7 +421,7 @@ async def handle_verification_link(message: types.Message):
         save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
         await message.reply("🤔What's Your TikTok Account Name?\n\n╰┈➤Help Advertisers Know its You😎 ")
     else:
-        await message.reply("Please provide a valid TikTok link. Either way, you can press /cancel to quit")
+        await message.reply("Please provide a valid TikTok link. Either way, you can press /cancel to exit link submission")
 
 @dp.message(
     lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_profile_name')
@@ -693,10 +698,11 @@ async def handle_ad_photo(message: types.Message):
     order_id = advertiza[requester_id]['order_id']
     save_data('advertiza', requester_id, advertiza[requester_id])
 
+    if requester_id not in ad_requests:
+        await message.reply(
+            "You have not requested to place an ad yet. Please click the 'Place AD' button in the channel.")
+        return
 
-  #  if requester_id not in ad_requests:
-  #      await message.reply("You have not requested to place an ad yet. Please click the 'Place AD' button in the channel.")
-    #    return
 
     # Extract the ad content from the caption
     ad_content = message.caption.replace("#Adcontent", "").strip()
@@ -715,27 +721,32 @@ async def handle_ad_photo(message: types.Message):
     builder.attach(InlineKeyboardBuilder.from_markup(markup))
 
 
-    # Forward the photo to the admin along with the caption
-    ad_msg = await bot.send_photo(
-        ADMIN_CHAT_ID,
-        photo=message.photo[-1].file_id,  # The highest resolution photo
-        caption=f"Ad Content from from Advertiser @{message.from_user.username}:\n\n{ad_content}\n\n<b>Order ID:</b> <code>{order_id}</code>",
-        reply_markup=builder.as_markup(),
-        parse_mode=ParseMode.HTML)
-    # Store the ad_msg details
-    ad_request_messages[requester_id] = {'chat_id': ADMIN_CHAT_ID, 'message_id': ad_msg.message_id}
+
+    async with ChatActionSender.upload_photo(bot=bot, chat_id=message.chat.id):
+        # Forward the photo to the admin along with the caption
+        await asyncio.sleep(3)
+        ad_msg = await bot.send_photo(
+           ADMIN_CHAT_ID,
+           photo=message.photo[-1].file_id,  # The highest resolution photo
+           caption=f"Ad Content from from Advertiser @{message.from_user.username}:\n\n{ad_content}\n\n<b>Order ID:</b> <code>{order_id}</code>",
+           reply_markup=builder.as_markup(),
+           parse_mode=ParseMode.HTML)
+        # Store the ad_msg details
+        ad_request_messages[requester_id] = {'chat_id': ADMIN_CHAT_ID, 'message_id': ad_msg.message_id}
 
 
-    # Advertiser must "Pay" button
-    builder = InlineKeyboardBuilder()
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='💰Make Payment💰', callback_data=f"make_the_payment_{requester_id}")]
-    ])
-    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+    async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+        # Advertiser must "Pay" button
+        builder = InlineKeyboardBuilder()
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='💰Make Payment💰', callback_data=f"make_the_payment_{requester_id}")]
+        ])
+        builder.attach(InlineKeyboardBuilder.from_markup(markup))
+        await asyncio.sleep(3)
 
-    await message.reply(f"Your Ad has been submitted.\n\n<b>Your order ID is:</b> <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours."
-                        , parse_mode=ParseMode.HTML,
-                        reply_markup=builder.as_markup())
+        await message.reply(f"Your Ad has been submitted.\n\n<b>Your order ID is:</b> <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours."
+                            , parse_mode=ParseMode.HTML,
+                            reply_markup=builder.as_markup())
 
 
 
@@ -778,17 +789,20 @@ async def handle_ad_content(message: types.Message):
     # Store the ad_msg details
     ad_request_messages[requester_id] = {'chat_id': ADMIN_CHAT_ID, 'message_id': ad_msg.message_id}
 
-    # Advertiser must "Pay" button
-    builder = InlineKeyboardBuilder()
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='💰Make Payment💰', callback_data=f"make_the_payment_{requester_id}")]
-    ])
-    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+    async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+        # Advertiser must "Pay" button
+        builder = InlineKeyboardBuilder()
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='💰Make Payment💰', callback_data=f"make_the_payment_{requester_id}")]
+        ])
+        builder.attach(InlineKeyboardBuilder.from_markup(markup))
+        await asyncio.sleep(3)
 
-    await message.reply(
-        f"Your Ad has been submitted.\n\n<b>Your order ID is:</b> <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours."
-        , parse_mode=ParseMode.HTML,
-        reply_markup=builder.as_markup())
+        await message.reply(f"Your Ad has been submitted.\n\n<b>Your order ID is:</b> <code>{order_id}</code> \n\nThis order automatically cancels if the escrow team doesnt recieve a payment from you within 2 hours."
+                            , parse_mode=ParseMode.HTML,
+                            reply_markup=builder.as_markup())
+
+
 
 
 @dp.callback_query(lambda query: query.data.startswith('make_the_payment_'))
@@ -887,7 +901,7 @@ async def handle_phone_number(message: types.Message):
             await asyncio.sleep(2)
             await suga.delete()
             # Delay for 10 minutes
-            await asyncio.sleep(300)  # 10 minutes = 600 seconds
+            await asyncio.sleep(300)  # 5 minutes = 600 seconds
 
             # Edit the message after 10 minutes
             await bot.edit_message_text(chat_id=payers_id, message_id=message.message_id,
