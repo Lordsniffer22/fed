@@ -1,26 +1,39 @@
 #!/bin/bash
-mkdir psiphon
-cd psiphon
+
+# Create directory and navigate into it
+mkdir -p /root/psiphon
+cd /root/psiphon
+
+# Download psiphond
 wget https://github.com/mukswilly/psicore-binaries/raw/master/psiphond/psiphond
 chmod +x psiphond
-./psiphond -ip curl -4 ifconfig.co -sS -protocol FRONTED=MEEK-OSSH:443 generate
 
-./psiphond run
+# Generate configuration
+./psiphond -ip "$(curl -4 ifconfig.co -sS)" -protocol FRONTED=MEEK-OSSH:443 generate
 
+# Create systemd service file
 cat <<EOF > /etc/systemd/system/psiphond.service
 [Unit]
+Description=Psiphond Service
 After=network.target
+
 [Service]
-ExecStart=/root/psiphon/psiphond
-run
+ExecStart=/root/psiphon/psiphond run
 Type=simple
 WorkingDirectory=/root/psiphon/
-[install]
-WantedBy=default.target
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
 EOF
 
+# Enable and start the service
 systemctl enable psiphond.service
 systemctl start psiphond.service
+
+# Check the status of the service
 systemctl status psiphond.service
+
+# Clear the screen and display the server entry data
 clear
-cat server-entry.dat
+cat /root/psiphon/server-entry.dat
