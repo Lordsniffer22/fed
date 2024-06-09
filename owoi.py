@@ -478,7 +478,8 @@ async def handle_views(message: types.Message):
     user_data[user_id]['location'] = message.text.strip()
     user_data[user_id]['verification_step'] = 'awaiting_currency'
     save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
-    await message.reply("In which <b>currency</b> do you want to Recieve your <u>payments</u>?", parse_mode=ParseMode.HTML)
+    await message.reply("In which <b>currency</b> do you want to Recieve your <u>payments</u>?\n\n"
+                        "Default Currency: UGX", parse_mode=ParseMode.HTML)
 
 # Handler to get the currency
 @dp.message(
