@@ -867,14 +867,19 @@ async def handle_phone_number(message: types.Message):
             # Retrieve the price information using the user_id
             if user_id in user_data:
                 price_info = user_data[user_id].get('price')
-                if price_info:
+                try:
                     currency, amount = price_info.split()  # Split currency and price
-                else:
-                    await bot.send_message(payers_id, 'Price not found. Please contact support.')
-                    return
+                except ValueError:
+                    # If splitting fails, set default currency (UGX)
+                    currency = 'UGX'
+                    amount = price_info
             else:
-                await bot.send_message(payers_id, 'User data not found. It seems you forgot to click on "Place Ad" button in @adskity.')
+                await bot.send_message(payers_id,
+                                       'User data not found. It seems you forgot to click on "Place Ad" button in @adskity.')
                 return
+        else:
+            await bot.send_message(payers_id, 'User ID is None. Please provide a valid user ID.')
+            return
 
         # Now initiate the Flutterwave charge
         payload = {
