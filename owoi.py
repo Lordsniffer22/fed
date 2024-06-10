@@ -1,3 +1,4 @@
+
 import os
 import asyncio
 import logging
@@ -18,7 +19,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, R
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.utils.chat_action import ChatActionSender
 import sqlite3
-
+from datetime import datetime, timedelta
 from rave_python import Rave,  RaveExceptions, Misc
 from dotenv import load_dotenv
 load_dotenv()
@@ -26,9 +27,9 @@ Secret = os.getenv('RAVE_SECRET_KEY')
 rave = Rave("FLWPUBK-1ab67f97ba59d47b65d67001eb794a05-X", Secret,  production=True)
 
 # Telegram bot token (TEST MODE)
-#TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
+TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
-TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
+#TELEGRAM_BOT_TOKEN = '6917061943:AAFQXY3j_bLYX_z30kpyfRYq4GuEHpCZ6Ys'
 #main Admin
 ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
@@ -132,10 +133,77 @@ verif_reqs = {}
 temp_user_id = {}
 
 user_states = {}
+exchange_rates = {}
 
 # Define states
 STATE_AWAITING_PHONE_NUMBER = 'awaiting_phone_number'
 STATE_NONE = 'none'
+
+
+# Get the current date and time
+times = datetime.now()
+yesterday = times - timedelta(days=1)
+date = yesterday.strftime('%Y-%m-%d')
+time = '20'
+
+def get_ugx_rates():
+    # Format the URL with the date and time
+    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
+
+    # Make the request
+    response = requests.get(url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        datam = response.json()
+        ugx_rate = datam['quotes']['UGX']
+        return ugx_rate
+    else:
+        return None
+def get_ngn_rates():
+    # Format the URL with the date and time
+    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
+
+    # Make the request
+    response = requests.get(url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        datam = response.json()
+        ngn_rate = datam['quotes']['NGN']
+        return ngn_rate
+    else:
+        return None
+
+def get_kes_rates():
+    # Format the URL with the date and time
+    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
+
+    # Make the request
+    response = requests.get(url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        datam = response.json()
+        kes_rate = datam['quotes']['KES']
+        return kes_rate
+    else:
+        return None
+
+def get_rwf_rates():
+    # Format the URL with the date and time
+    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
+
+    # Make the request
+    response = requests.get(url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        datam = response.json()
+        ugx_rate = datam['quotes']['RWF']
+        return ugx_rate
+    else:
+        return None
 
 def save_data(table, key, data):
     data_to_save = data.copy()  # Create a copy of the data dictionary
@@ -488,11 +556,19 @@ async def handle_currency(message: types.Message):
         return
     user_id = message.from_user.id
     currency = message.text.strip()
+    allowed_currencies = {'UGX','USD', 'KES', 'ZAR', 'NGN', 'GHS', 'RWF'}
+    if currency in allowed_currencies:
+       # Save the currency in user_data
+       user_data[user_id]['currency'] = currency
+       user_data[user_id]['verification_step'] = 'awaiting_price'
+       await message.answer(f"Got it! Now, please enter the price in {currency}:")
+    else:
+        await message.reply('<b>Put a valid currency!</b>\n\n'
+                            'At the moment, our system only allows any of these: \n<b>UGX, USD, KES, ZAR, NGN, GHS, RWF</b>\n\n'
+                            '<i>The administration is working hard and in a few days, your currency will be supported too!</i>',
+                            parse_mode=ParseMode.HTML)
 
-    # Save the currency in user_data
-    user_data[user_id]['currency'] = currency
-    user_data[user_id]['verification_step'] = 'awaiting_price'
-    await message.answer(f"Got it! Now, please enter the price in {currency}:")
+
 
 @dp.message(lambda message: user_data.get(message.from_user.id, {}).get('verification_step') == 'awaiting_price')
 async def handle_price(message: types.Message):
@@ -868,11 +944,12 @@ async def handle_phone_number(message: types.Message):
             if user_id in user_data:
                 price_info = user_data[user_id].get('price')
                 try:
-                    currency, amount = price_info.split()  # Split currency and price
+                    currency, amount1 = price_info.split()  # Split currency and price
+                    amount = float(amount1)
                 except ValueError:
                     # If splitting fails, set default currency (UGX)
                     currency = 'UGX'
-                    amount = price_info
+                    amount = float(price_info)
             else:
                 await bot.send_message(payers_id,
                                        'User data not found. It seems you forgot to click on "Place Ad" button in @adskity.')
@@ -880,6 +957,55 @@ async def handle_phone_number(message: types.Message):
         else:
             await bot.send_message(payers_id, 'User ID is None. Please provide a valid user ID.')
             return
+
+        # Convert USD to UGX if needed
+        if currency == 'USD':
+            exchange_rate = float(get_ugx_rates())
+            if exchange_rate is None:
+                await bot.send_message(payers_id, 'Failed to fetch exchange rate. Please try again later.')
+                return
+            amount = int(amount * exchange_rate)
+            currency = 'UGX'  # Update currency to UGX
+        # Convert KES to UGX if needed
+        if currency == 'KES':
+            kenya_rate = float(get_kes_rates())
+            if kenya_rate is None:
+                await bot.send_message(payers_id, 'Failed to fetch exchange rate. Please try again later.')
+                return
+            #KES to USD
+            usd_amount = int(amount / kenya_rate)
+            currency = 'UGX'  # Update currency to KES
+            ugx_rate = float(get_ugx_rates())
+            #USD TO UGX
+            amount = int(usd_amount * ugx_rate)
+            print(amount)
+        # Convert NGN to UGX if needed
+        if currency == 'NGN':
+            ngn_rate = float(get_ngn_rates())
+            if ngn_rate is None:
+                await bot.send_message(payers_id, 'Failed to fetch exchange rate. Please try again later.')
+                return
+            #NGN to USD
+            usd_amount = int(amount / ngn_rate)
+            #UGX AMOUNT
+            ugx_rate = float(get_ugx_rates())
+            amount = int(usd_amount * ugx_rate)
+            currency = 'NGN'  # Update currency to UGX
+
+        # Convert NGN to UGX if needed
+        if currency == 'RWF':
+            rwanda_rate = float(get_rwf_rates())
+            if rwanda_rate is None:
+                await bot.send_message(payers_id, 'Failed to fetch exchange rate. Please try again later.')
+                return
+            #NGN to USD
+            usd_amount = int(amount / rwanda_rate)
+            #UGX AMOUNT
+            ugx_rate = float(get_ugx_rates())
+            amount = int(usd_amount * ugx_rate)
+            currency = 'RWF'  # Update currency to UGX
+
+
 
         # Now initiate the Flutterwave charge
         payload = {
