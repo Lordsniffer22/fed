@@ -35,7 +35,7 @@ ADMIN_CHAT_ID = '6448112643'
 # List of admin IDs that can verify accountss
 ADMIN_IDS = [6448112643, 1383981132]
 
-CHANNEL_ID = '-1002061815083'  # You can use channel username or chat ID
+CHANNEL_ID = '-1001848457747'  # You can use channel username or chat ID
 CHANNEL_TAG = 'adskity'
 
 # Dispatcher initialization
