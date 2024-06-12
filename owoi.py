@@ -336,7 +336,7 @@ load_all_data()
 
 async def generate_referral_link(user_id):
     unique_code = str(uuid.uuid4())[:8]  # Generate a unique code
-    referral_link = f"https://t.me/adskitBot?start={unique_code}"
+    referral_link = f"https://t.me/adskitbot?start={unique_code}"
     return unique_code, referral_link
 
 
@@ -996,17 +996,38 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
     await asyncio.sleep(3600)
     del ad_requests[requester_id]
 
+async def save_if_not_there(user_id):
+    unique_code, referral_link = await generate_referral_link(user_id)
+    print(unique_code)
+    print(referral_link)
+    print(user_id)
+    user_data[user_id]['referral_code'] = unique_code
+    user_data[user_id]['referral_link'] = referral_link
+    save_data('user_data', user_id, user_data[user_id])
+
 async def send_ref_link(message: types.Message):
     user_id = message.from_user.id
-    referral_link = user_data[user_id]['referral_link']
-    await message.reply(f"🤝Here is your Referral link:\n"
+   # username = message.from_user.first_name
+    if user_id in user_data:
+        referral_link = user_data[user_id]['referral_link']
+        await message.reply(f"🤝Here is your Referral link:\n"
                         
                         f"───────────────────────\n"
                         f"Click to copy💓\n\n"
                         f"<code>{referral_link}</code>\n\n"
                         f"<i>Share it with your fellow tiktokers (or advertisers) to earn quick cash</i>",
                         parse_mode=ParseMode.HTML)
+    else:
+        user_data[user_id] = {}
+        await save_if_not_there(user_id)
+        referral_link = user_data[user_id]['referral_link']
+        await message.reply(f"🤝Here is your Referral link:\n"
 
+                            f"───────────────────────\n"
+                            f"Click to copy💓\n\n"
+                            f"<code>{referral_link}</code>\n\n"
+                            f"<i>Share it with your fellow tiktokers (or advertisers) to earn quick cash</i>",
+                            parse_mode=ParseMode.HTML)
 
 async def send_photo_from_url(chat_id: int, photo_url: str, caption: str):
     await bot.send_photo(chat_id, photo=photo_url, caption=caption)
