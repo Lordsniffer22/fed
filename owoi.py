@@ -7,7 +7,7 @@ import time
 import re
 import random
 import aiohttp
-
+import uuid
 import json
 
 import requests
@@ -109,6 +109,26 @@ cursor.execute('''
     )
 ''')
 
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS referrals (
+        user_id INTEGER PRIMARY KEY,
+        data TEXT
+    )
+''')
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_balances (
+        user_id INTEGER PRIMARY KEY,
+        balance REAL DEFAULT 0.0
+    )
+''')
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS referral_counts (
+        referrer_id INTEGER PRIMARY KEY,
+        count INTEGER DEFAULT 0.0
+    )
+''')
+
 # Add the new column to the tables
 
 add_column_if_not_exists('ad_contents', 'user_id', 'TEXT')
@@ -118,6 +138,9 @@ add_column_if_not_exists('verified_users', 'timestamp', 'TEXT')
 add_column_if_not_exists('advertiza', 'timestamp', 'TEXT')
 add_column_if_not_exists('ad_requests', 'user_id', 'TEXT')
 add_column_if_not_exists('ad_requests', 'timestamp', 'TEXT')
+add_column_if_not_exists('referrals', 'timestamp', 'TEXT')
+add_column_if_not_exists('referrals', 'referee_id', 'TEXT')
+add_column_if_not_exists('referrals', 'referrer_id', 'TEXT')
 
 conn.commit()
 
@@ -134,9 +157,11 @@ temp_user_id = {}
 
 user_states = {}
 exchange_rates = {}
+referrals = {}
 
 # Define states
 STATE_AWAITING_PHONE_NUMBER = 'awaiting_phone_number'
+STATE_AWAITING_MOMO_ADDR = 'awaiting_phone_number'
 STATE_NONE = 'none'
 
 
@@ -145,11 +170,11 @@ times = datetime.now()
 yesterday = times - timedelta(days=1)
 date = yesterday.strftime('%Y-%m-%d')
 time = '20'
+# Format the URL with the date and time
+url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
 
 def get_ugx_rates():
     # Format the URL with the date and time
-    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
-
     # Make the request
     response = requests.get(url)
 
@@ -162,8 +187,6 @@ def get_ugx_rates():
         return None
 def get_ngn_rates():
     # Format the URL with the date and time
-    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
-
     # Make the request
     response = requests.get(url)
 
@@ -176,8 +199,6 @@ def get_ngn_rates():
         return None
 
 def get_kes_rates():
-    # Format the URL with the date and time
-    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
 
     # Make the request
     response = requests.get(url)
@@ -191,9 +212,6 @@ def get_kes_rates():
         return None
 
 def get_rwf_rates():
-    # Format the URL with the date and time
-    url = f'https://cdn.jsdelivr.net/gh/ismartcoding/currency-api/{date}/{time}.json'
-
     # Make the request
     response = requests.get(url)
 
@@ -205,13 +223,26 @@ def get_rwf_rates():
     else:
         return None
 
-def save_data(table, key, data):
-    data_to_save = data.copy()  # Create a copy of the data dictionary
-    if 'verification_step' in data_to_save:
-        del data_to_save['verification_step']  # Remove the verification_step key
+def save_data(table, user_id, referrer_id):
+    """
+    Save data to the database.
+    """
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    referee_id = user_id
 
-    timestamp = datetime.now().isoformat()
-    cursor.execute(f"INSERT OR REPLACE INTO {table} (user_id, data, timestamp) VALUES (?, ?, ?)", (key, json.dumps(data_to_save), timestamp))
+    if table == 'referrals':
+        # Save the referee's user ID and the referrer's user ID
+        cursor.execute(f"INSERT OR REPLACE INTO {table} (referee_id, referrer_id, timestamp) VALUES (?, ?, ?)",
+                       (referee_id, referrer_id, timestamp))
+
+    elif table == 'user_data':
+        # Save user data
+        data_to_save = user_data[user_id].copy()  # Create a copy of the data dictionary
+        if 'verification_step' in data_to_save:
+            del data_to_save['verification_step']  # Remove the verification_step key
+
+        cursor.execute(f"INSERT OR REPLACE INTO {table} (user_id, data, timestamp) VALUES (?, ?, ?)",
+                       (user_id, json.dumps(data_to_save), timestamp))
     conn.commit()
 
 
@@ -225,13 +256,47 @@ def delete_data(table, key):
     cursor.execute(f"DELETE FROM {table} WHERE user_id = ?", (key,))
     conn.commit()
 
+def update_user_balance(user_id, amount):
+    """
+    Update the user's balance in the database.
+    """
+    # Check if the user already has a balance record
+    cursor.execute("SELECT balance FROM user_balances WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+
+    if result:
+        # Update existing balance
+        new_balance = result[0] + amount
+        cursor.execute("UPDATE user_balances SET balance = ? WHERE user_id = ?", (new_balance, user_id))
+    else:
+        # Create a new balance record
+        cursor.execute("INSERT INTO user_balances (user_id, balance) VALUES (?, ?)", (user_id, amount))
+
+    conn.commit()
+
+def update_referral_count(referrer_id):
+    """
+    Update the count of referrals made by the referrer in the database.
+    """
+    # Check if the referrer already has a referral count record
+    cursor.execute("SELECT count FROM referral_counts WHERE referrer_id = ?", (referrer_id,))
+    result = cursor.fetchone()
+
+    if result:
+        # Update existing referral count
+        new_count = result[0] + 1
+        cursor.execute("UPDATE referral_counts SET count = ? WHERE referrer_id = ?", (new_count, referrer_id))
+    else:
+        # Create a new referral count record
+        cursor.execute("INSERT INTO referral_counts (referrer_id, count) VALUES (?, ?)", (referrer_id, 1))
+
+    conn.commit()
 
 def load_all_data():
     cursor.execute("SELECT user_id, data FROM user_data")
     for row in cursor.fetchall():
         user_data[row[0]] = json.loads(row[1])
 
-    #cursor.execute("SELECT requester_id, data FROM ad_requests")
     cursor.execute("SELECT user_id, data FROM ad_requests")
     for row in cursor.fetchall():
         user_id, data = row
@@ -258,8 +323,21 @@ def load_all_data():
     for row in cursor.fetchall():
         verified_users[row[0]] = json.loads(row[1])
 
+    cursor.execute("SELECT user_id, data FROM ad_requests")
+    for row in cursor.fetchall():
+        ad_requests[row[0]] = json.loads(row[1])
+
+    cursor.execute("SELECT user_id, data FROM referrals")
+    for row in cursor.fetchall():
+        referrals[row[0]] = json.loads(row[1])
+
 
 load_all_data()
+
+async def generate_referral_link(user_id):
+    unique_code = str(uuid.uuid4())[:8]  # Generate a unique code
+    referral_link = f"https://t.me/meidenVBot?start={unique_code}"
+    return unique_code, referral_link
 
 
 async def recieve_video(message: types.Message):
@@ -279,21 +357,134 @@ def calculate_price_with_markup(price):
 # Function to generate a random unique ID of up to 8 digits
 def generate_unique_id():
     return str(random.randint(10000000, 99999999))
+async def cash_out(user_id):
+    cursor.execute("DELETE FROM user_balances WHERE user_id = ?", (user_id,))
+    conn.commit()
+
+quik_bal = {}
+quik_id = {}
+async def show_balance(message: types.Message):
+    global quik_bal  # Declare quik_bal as a global variable
+    user_id = message.from_user.id
+
+    # Retrieve the user's balance
+    cursor.execute("SELECT balance FROM user_balances WHERE user_id = ?", (user_id,))
+    result = cursor.fetchone()
+    # Retrieve referrer's referral count
+    cursor.execute("SELECT count FROM referral_counts WHERE referrer_id = ?", (user_id,))
+    referral_count_result = cursor.fetchone()
+    referral_count = referral_count_result[0] if referral_count_result else 0
+
+
+    builder = InlineKeyboardBuilder()
+    markup = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text='Cashout', callback_data=f"cash_out_{user_id}")]
+    ])
+    builder.attach(InlineKeyboardBuilder.from_markup(markup))
+
+    if result:
+
+        balance = result[0]
+        quik_bal = balance
+        await message.reply(f"💰<b>Current balance:</b> UGX "
+                            f"{balance:.2f}\n\n"
+                            f"Total Referred: {referral_count}\n\n"
+                            f"<i>⚠️This amount is only for referral bonuses. All funds you get after accepting Ads from advertisers are paid out to you immediately and is not saved in our records.</i>",
+                            parse_mode=ParseMode.HTML, reply_markup=builder.as_markup())
+    else:
+        await message.reply("Your current balance is: UGX 0.0\n\n"
+                            f"Total Referred: {referral_count}\n\n"
+                            "<b>Invite</b> more tiktokers to join adskit so you can earn cash!",
+                            parse_mode=ParseMode.HTML)
+
+@dp.callback_query(lambda query: query.data.startswith('cash_out_'))
+async def handle_accept_ad_callback(query: types.CallbackQuery):
+    global quik_id
+    parts = query.data.split('_')
+    requester_id = int(parts[2])
+    quik_id = requester_id
+
+    await asyncio.sleep(3)
+    await query.message.answer("Ok lets cash out. What's your Momo Number?\n\n"
+                               "Currently, we support Mpesa, Airtel, MTN and Binance")
+    # Set state to awaiting phone number
+    user_states[requester_id] = STATE_AWAITING_MOMO_ADDR
+
+@dp.message(lambda message: user_states.get(message.chat.id) == STATE_AWAITING_MOMO_ADDR)
+async def handle_phone_number(message: types.Message):
+    momo_number = message.text.strip()
+    user_id = message.chat.id
+    payers_id = message.chat.id
+    requester_id = quik_id
+    deto = datetime.now()
+    det = deto.strftime('%Y-%m-%d')
+    full_name = f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
+    user_name = f"{message.from_user.username}"
+
+    if await cancel_withdraw(message):
+        return
+
+    if (momo_number.startswith('07') or momo_number.startswith('02') or momo_number.startswith('03')) and len(momo_number) == 10:
+        user_states[requester_id] = STATE_NONE  # Reset state
+        await message.reply(f'Cashout process has been initiated.\n\nDate: {det}')
+
+        balance = quik_bal
+
+        msg_text = (f"<b>{full_name}</b> has initiated a withdraw of his referal balance.\n\n"
+                   f"<b>Username:</b> @{user_name}\n"
+                   f"<b>Amount:</b> UGX {balance}\n"
+                   f"<b>Momo:</b> {momo_number}")
+        await bot.send_message(ADMIN_CHAT_ID, msg_text, parse_mode=ParseMode.HTML)
+        # Process cash-out operation
+        await cash_out(user_id)
+        momo_number = None
+    else:
+        await message.reply('A valid payment account is needed. It can be a valid phone number\n\n'
+                            'Otherwise, press /cancel to move on')
+
+
 
 async def send_welcome(message: types.Message):
     full_name = f"{message.from_user.first_name} {message.from_user.last_name or ''}".strip()
     user_id = message.from_user.id
+    text_parts = message.text.split()
+    referral_code = ""  # Initialize referral_code
 
     if user_id in verified_users:
         await message.reply(f"Welcome Back {full_name}!"
                             f"\n\nWe are glad you are here with us again😍\n"
                             f"╰┈➤Press: /help ")
     else:
+        if len(text_parts) > 1:
+            referral_code = text_parts[1]
+            referrer_id = None
+            for uid, data in user_data.items():
+                if data.get('referral_code') == referral_code:
+                    referrer_id = uid
+                    break
+
+            if referrer_id:
+                # Save referral data
+                save_data('referrals', user_id, referrer_id)
+                save_data('user_data', user_id, {'referral_code': referral_code, 'referrer_id': referrer_id})
+
+        caption0 = ("Reach millions of potential customers on TikTok through us! \n\n"
+                   "We connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\n"
+                   "Type '/help' to get started!"
+                    f"\n\nYou were referred by: {referral_code}")
         caption = ("Reach millions of potential customers on TikTok through us! \n\n"
                    "We connect advertisers with popular TikTok creators who have a large following ready to buy your products or services. \n\n"
                    "Type '/help' to get started!")
         photo_url = 'https://raw.githubusercontent.com/Lordsniffer22/fed/main/start.jpg'  # Replace with your photo URL
-        await send_photo_from_url(user_id, photo_url, caption=caption)
+
+        try:
+            if referral_code:
+                await send_photo_from_url(user_id, photo_url, caption=caption0)
+            else:
+                await send_photo_from_url(user_id, photo_url, caption=caption)
+        except:
+            await send_photo_from_url(user_id, photo_url, caption=caption)
+
 async def check_subscription(user_id: int) -> bool:
     try:
         member = await bot.get_chat_member(chat_id=CHANNEL_ID, user_id=user_id)
@@ -308,17 +499,19 @@ async def send_help(message: types.Message):
     async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
        if is_subscribed:
            await asyncio.sleep(2)
-           await message.reply("<b>This Bot now manages both TikTok content creators and Advertisers.</b>\n═══════════════════════════\n\n"
+           await message.reply("<b>Adskit Bot Usage [Full Guide on Website]</b>\n═══════════════════════════\n\n"
                         "<b>TikTokers</b>\n─────────────────\n\n"
-                        "✨- To sign up, send /register to this chat and follow the prompts.\n\n"  
-                        "✨- To submit your video where you have included the Advert, send /done to this chat and follow the prompts\n\n"                        
+                        "✨- To sign up as a publisher, send /register to this bot and follow the prompts.\n\n"
+                        "✨- To Check Referral Balance, send /bal\n\n" 
+                        "✨- To Invite a Friend, send /invite\n\n" 
+                        "✨- To submit a video where you have included the Advert, send /done to this chat and follow the prompts\n\n"                        
                         "<b>Advertisers</b>\n─────────────────\n\n"
                         "🗽- Advertisers Dont need to sign up. (You are flexible)\n\n"
-                        "⊷▷Visit @adskity and look for a tiktoker you think will suit your marketing needs\n\n"
-                        "⊷▷Press on 'Place AD' button to submit your request. We shall send you the Instructions through this bot.\n\n"
+                        "⭐️Visit @adskity and look for a tiktoker you think will suit your marketing needs\n\n"
+                        "⭐️Press on '<b><u>Place AD</u></b>' button to submit your request. We shall send you the Instructions through this <a href='t.me/adskitbot'>bot</a>.\n\n"
                         "<b>👉Confirm this:</b>\n─────────────────\nThe Adskit ID displayed on each Ad Space in the channel is also there on the Tiktoker's account if you visit his/her tiktok account.\n\n"
-                        "<b><i>⚠️Note: Adskit (Tiktok spaces) Is not owned by ByteDance Ltd (TikTok).</i></b>\n\n",
-                        parse_mode=ParseMode.HTML)
+                        "<b><i><u>⚠️Note: Adskit (Adskit spaces) Is not owned by ByteDance Ltd (TikTok).</u></i></b>\n\n",
+                        parse_mode=ParseMode.HTML, disable_web_page_preview=True)
        else:
            builder = InlineKeyboardBuilder()
            markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -326,12 +519,13 @@ async def send_help(message: types.Message):
            ])  # Some markup
            builder.attach(InlineKeyboardBuilder.from_markup(markup))
            await message.reply(
-               "You must first be a Member in TikTok Spaces (Adskit Channel). Please join the channel and try again.",
+               "You must first be a Member in Adskit Spaces (Adskit Channel). Please join the channel and try again.",
                reply_markup=builder.as_markup())
 
 
 async def start_verification(message: types.Message):
     user_id = message.from_user.id
+    print(verified_users)
 
     if user_id in verified_users:
         await message.reply("You are already registered and verified with us.\n\nForgot Your Account ID? Look for it here: @adskity \n\nContact us for assistace: adskit1@gmail.com")
@@ -373,6 +567,15 @@ async def cancel_user_reg(message: types.Message):
     if message.text.lower() == '/cancel':
         user_data[message.from_user.id]['verification_step'] = None
         save_data('user_data', message.from_user.id, user_data[message.from_user.id])
+        await message.reply("Operation Terminated. You can start again anytime if you wish.\n"
+                            "For Help: /help")
+        return True
+    return False
+async def cancel_withdraw(message: types.Message):
+    global quik_id
+    if message.text.lower() == '/cancel':
+        requester_id = quik_id
+        user_states[requester_id] = None
         await message.reply("Operation Terminated. You can start again anytime if you wish.\n"
                             "For Help: /help")
         return True
@@ -585,6 +788,9 @@ async def handle_price(message: types.Message):
         user_data[user_id]['price'] = f"{currency} {new_price}"
         user_data[user_id]['verification_step'] = None
         unique_id = user_data[user_id]['unique_id']  # Retrieve the unique ID
+        unique_code, referral_link = await generate_referral_link(user_id)
+        user_data[user_id]['referral_code'] = unique_code
+        user_data[user_id]['referral_link'] = referral_link
         save_data('user_data', user_id, user_data[user_id])  # Save the entire dictionary
     else:
         await message.answer("Invalid input. Please enter digits only for the price:")
@@ -660,50 +866,89 @@ async def handle_decline_link_callback(query: types.CallbackQuery):
 
     await query.answer('User registration has been declined.')
 
-# Approve user registration
+## Approve user registration
 @dp.callback_query(lambda query: query.data.startswith('verify_link_'))
 async def handle_verify_link_callback(query: types.CallbackQuery):
-    # Extract user_id from the callback data
-    user_id = int(query.data.split('_')[2])
-    requester_id = int(query.data.split('_')[2])
+    try:
+        # Extract user_id from the callback data
+        user_id = int(query.data.split('_')[2])
+        requester_id = int(query.data.split('_')[2])
 
-    builder2 = InlineKeyboardBuilder()
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text='Place AD', callback_data=f"place_ad_{user_id}")]
-    ])
-    builder2.attach(InlineKeyboardBuilder.from_markup(markup))
+        builder2 = InlineKeyboardBuilder()
+        markup = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text='Place AD', callback_data=f"place_ad_{user_id}")]
+        ])
+        builder2.attach(InlineKeyboardBuilder.from_markup(markup))
 
-    unique_id = user_data[user_id]['unique_id']
+        unique_id = user_data[user_id]['unique_id']
 
-    # Delete the admin message first
-    if user_id in verif_reqs:
-        for admin_id, message_id in verif_reqs[user_id]:
-            try:
-                await bot.delete_message(chat_id=admin_id, message_id=message_id)
-            except Exception as e:
-                print(f"Error deleting message: {e}")
+        # Delete the admin message first
+        if user_id in verif_reqs:
+            for admin_id, message_id in verif_reqs[user_id]:
+                try:
+                    await bot.delete_message(chat_id=admin_id, message_id=message_id)
+                except Exception as e:
+                    print(f"Error deleting message: {e}")
 
-    # Notify the user that their link has been verified
-    await bot.send_message(user_id, f"Your Account has been Approved 🎉\n\n<b>What Next:</b>\n✨Advertising companies will glance at your TikTok account. Focus on making it more appealing 🤗 \n\nKeep an eye @adskity\n\n✅<b>Your Adskit ID:</b> <code>{unique_id}</code>",
-                           parse_mode=ParseMode.HTML)
-    verified_users[user_id] = user_data[user_id]  # Add user to verified users
-    save_data('verified_users', user_id, user_data[user_id])
-    save_data('ad_requests', requester_id, user_data[user_id])
-    await query.answer('User has been verified successfully!')
+        referral_link = user_data[user_id]['referral_link']
+        # Notify the user that their link has been verified
+        await bot.send_message(user_id, f"Your Account has been Approved 🎉\n\n<b>What Next:</b>\n✨Advertising companies will glance at your TikTok account. Focus on making it more appealing 🤗 \n\nKeep an eye @adskity\n\n✅<b>Your Adskit ID:</b> <code>{unique_id}</code>",
+                               parse_mode=ParseMode.HTML)
+        await asyncio.sleep(3)
+        await bot.send_message(user_id,
+                               f"<b>Get free cash</b> when you invite more other tiktok creators or advertisers to <u>Adskit</u>\n\n<b>🍎 Referral link:</b>\n─────────────\n<code>{referral_link}</code>",
+                               parse_mode=ParseMode.HTML)
 
-    # Send a message to the channel notifying about the verified link
-    channel_id = '-1002061815083'  # Replace with your channel ID
-    profile_link = user_data[user_id]['link']
-    profile_link_html = f"<a href='{profile_link}'>CLICK</a>"
+        verified_users[user_id] = user_data[user_id]  # Add user to verified users
 
-    await bot.send_message(channel_id,
-                           f"<b>  🗣 New Ad space </b>👀\n═════════════════\n➤<b>Platform:</b> -TikTok\n➤<b>Username:</b> -{user_data[user_id]['profile_name']}\n➤<b>Followers:</b> #{user_data[user_id]['followers']}\n➤<b>Location:</b> -{user_data[user_id]['location']}\n\n🛒 Price Per Ad💰:\n─────────────\n╰┈➤{user_data[user_id]['price']}\n\n🥳 Profile link: {profile_link_html}\n\n<b>⊛Adskit ID:</b> <code>{unique_id}</code>",
-                           disable_web_page_preview=True,
-                           parse_mode=ParseMode.HTML,  # Set parse_mode to HTML
-                           reply_markup=builder2.as_markup())
+        # Save data (Ensure save_data is defined)
+        try:
+            save_data('verified_users', user_id, user_data[user_id])
+            save_data('ad_requests', requester_id, user_data[user_id])
+        except Exception as e:
+            print(f"Error saving data: {e}")
 
-    await bot.send_message(ADMIN_CHAT_ID, f"[■■■■ Verified] 100% ✅\n───────────────────────\n\nUser: <b>{user_data[user_id]['profile_name']}\nEmail: {user_data[user_id]['email_address']}</b>",
-                           parse_mode=ParseMode.HTML)
+        await query.answer('User has been verified successfully!')
+
+        # Retrieve the referrer ID
+        cursor.execute("SELECT referrer_id FROM referrals WHERE referee_id = ?", (user_id,))
+        result = cursor.fetchone()
+
+        if result:
+            referrer_id = result[0]
+            # Update referrer's referral count
+            update_referral_count(referrer_id)
+            # Update referrer's balance
+            update_user_balance(referrer_id, 50.0)
+            # Retrieve referrer's referral count
+            cursor.execute("SELECT count FROM referral_counts WHERE referrer_id = ?", (referrer_id,))
+            referral_count_result = cursor.fetchone()
+            referral_count = referral_count_result[0] if referral_count_result else 0
+
+            # Include referral count in the message
+            await bot.send_message(referrer_id, f"One of your referrals, {user_data[user_id]['profile_name']} has been verified! 🎉 \n"
+                                                f"You have earned a UGX 50 coupon.\n"
+                                                f"Total Referred: {referral_count}\n\n"
+                                                f"Check total /balance")
+
+        else:
+            print(f"No referrer found for referee {user_id}")
+
+        # Send a message to the channel notifying about the verified link
+        channel_id = '-1001848457747'  # Replace with your channel ID
+        profile_link = user_data[user_id]['link']
+        profile_link_html = f"<a href='{profile_link}'>CLICK</a>"
+
+        await bot.send_message(channel_id,
+                               f"<b>  🗣 New Ad space </b>👀\n═════════════════\n➤<b>Platform:</b> -TikTok\n➤<b>Username:</b> -{user_data[user_id]['profile_name']}\n➤<b>Followers:</b> #{user_data[user_id]['followers']}\n➤<b>Location:</b> -{user_data[user_id]['location']}\n\n🛒 Price Per Ad💰:\n─────────────\n╰┈➤{user_data[user_id]['price']}\n\n🥳 Profile link: {profile_link_html}\n\n<b>⊛Adskit ID:</b> <code>{unique_id}</code>",
+                               disable_web_page_preview=True,
+                               parse_mode=ParseMode.HTML,  # Set parse_mode to HTML
+                               reply_markup=builder2.as_markup())
+
+        await bot.send_message(ADMIN_CHAT_ID, f"[■■■■ Verified] 100% ✅\n───────────────────────\n\nUser: <b>{user_data[user_id]['profile_name']}\nEmail: {user_data[user_id]['email_address']}</b>",
+                               parse_mode=ParseMode.HTML)
+    except Exception as e:
+        print(f"Error handling verify link callback: {e}")
 
 
 @dp.callback_query(lambda query: query.data.startswith('place_ad_'))
@@ -751,7 +996,16 @@ async def handle_place_ad_callback(query: types.CallbackQuery):
     await asyncio.sleep(3600)
     del ad_requests[requester_id]
 
-
+async def send_ref_link(message: types.Message):
+    user_id = message.from_user.id
+    referral_link = user_data[user_id]['referral_link']
+    await message.reply(f"🤝Here is your Referral link:\n"
+                        
+                        f"───────────────────────\n"
+                        f"Click to copy💓\n\n"
+                        f"<code>{referral_link}</code>\n\n"
+                        f"<i>Share it with your fellow tiktokers (or advertisers) to earn quick cash</i>",
+                        parse_mode=ParseMode.HTML)
 
 
 async def send_photo_from_url(chat_id: int, photo_url: str, caption: str):
@@ -1288,18 +1542,22 @@ async def handle_decline_ad_callback(query: types.CallbackQuery):
 @dp.message()
 async def msg(message: types.Message):
     cmd = message.text.lower()
-    if cmd == '/start':
+    if cmd.startswith('/start'):
         await send_welcome(message)
     elif cmd == '/register':
         await start_verification(message)
     elif cmd == '/help':
         await send_help(message)
+    elif cmd == '/invite':
+        await send_ref_link(message)
     elif cmd == '/done':
         await recieve_video(message)
 
     # Cancellation command handler
     elif cmd == '/cancel':
         await handle_cancel(message)
+    elif cmd == '/bal' or cmd == '/balance':
+        await show_balance(message)
 
     elif cmd == '/dbase':
         await handle_dbase(message)
