@@ -336,7 +336,7 @@ load_all_data()
 
 async def generate_referral_link(user_id):
     unique_code = str(uuid.uuid4())[:8]  # Generate a unique code
-    referral_link = f"https://t.me/meidenVBot?start={unique_code}"
+    referral_link = f"https://t.me/adskitBot?start={unique_code}"
     return unique_code, referral_link
 
 
