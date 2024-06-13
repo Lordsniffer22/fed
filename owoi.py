@@ -26,6 +26,7 @@ load_dotenv()
 Secret = os.getenv('RAVE_SECRET_KEY')
 rave = Rave("FLWPUBK-1ab67f97ba59d47b65d67001eb794a05-X", Secret,  production=True)
 
+
 # Telegram bot token (TEST MODE)
 #TELEGRAM_BOT_TOKEN = '6997767656:AAF6arfo9vFhaBF3zQac8R9Tw8cdQEeNR1o'
 # Telegram bot token (PRODUCTION MODE)
