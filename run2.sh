@@ -38,6 +38,13 @@ fi
 # Download the application files
 wget -O owoi.py https://raw.githubusercontent.com/Lordsniffer22/fed/main/owoi.py &>/dev/null
 wget -O requirements.txt https://raw.githubusercontent.com/Lordsniffer22/fed/main/requirements.txt &>/dev/null
+#BUILD AN ENV
+cat <<EOF > .env
+RAVE_SECRET_KEY= FLWSECK-c0554fe039b959856c60903e8d14aedb-18fe9ef3dacvt-X
+# Set the environment variables (if any)
+ENV TOKEN=7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4
+EOF
+
 
 # Create a Dockerfile
 cat <<EOF > Dockerfile
@@ -55,9 +62,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
 COPY . .
-
-# Set the environment variables (if any)
-ENV TOKEN=7167940962:AAGhsvvZ0RmAitj0uxaODW-shBbiaynTYp4
 
 # Command to run the application
 CMD ["python3", "owoi.py"]
